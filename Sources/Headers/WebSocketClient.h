@@ -18,6 +18,7 @@ public:
     bool close(bool isFirst = true);
     bool connected();
     void do_read();
+    void sendFile(const std::string& filePath);
 
 signals:
     void messageReceived(const std::string& message);

@@ -22,7 +22,7 @@
 
 #include <boost/asio.hpp>
 #include <QApplication>
-#include "mainwindow.h"
+#include "MainWindow.h"
 #include <iostream>
 #include <QClipboard>
 

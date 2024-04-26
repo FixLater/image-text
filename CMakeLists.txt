@@ -11,10 +11,12 @@ add_executable(image_test main.cpp
         Sources/ImgTool.cpp
 #        Sources/MainWindow.cpp
 #        Sources/Headers/MainWindow.h
-        Sources/Headers/websocket_client.h
-        Sources/websocket_client.cpp
-        Sources/mainwindow.cpp
-        Sources/Headers/mainwindow.h
+        Sources/Headers/WebSocketClient.h
+        Sources/WebSocketClient.cpp
+        Sources/MainWindow.cpp
+        Sources/Headers/MainWindow.h
+        Sources/TableItemDelegate.cpp
+        Sources/UnicodeUtil.cpp
         #        Sources/Headers/mainwindow.h
 )
 set_target_properties(image_test PROPERTIES
@@ -22,14 +24,15 @@ set_target_properties(image_test PROPERTIES
 )
 
 # boost库
-set(BOOST_ROOT "D:/DevelopmentTool/c++/lib/boost_1_85_0")
-set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "D:/DevelopmentTool/c++/lib/boost_1_85_0")
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} "D:/DevelopmentTool/c++/lib/boost_1_85_0/stage/lib")
-set(Boost_LIB_PREFIX "lib")
+set(BOOST_ROOT "D:/DevelopmentTool/c++/lib/boost_1_85_0/")
+set(CMAKE_INCLUDE_PATH "D:/DevelopmentTool/c++/lib/boost_1_85_0/boost")
+set(CMAKE_LIBRARY_PATH "D:/DevelopmentTool/c++/lib/boost_1_85_0/stage/lib")
+#set(Boost_DEBUG ON)
+set(Boost_ARCHITECTURE "-x64")
 set(Boost_NO_WARN_NEW_VERSIONS 1)
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS locale)
 # 如果找到了Boost库，将其包含目录添加到项目中
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
