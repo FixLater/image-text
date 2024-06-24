@@ -9,12 +9,13 @@
 #include <QStandardItem>
 #include <QMenu>
 #include "TableItemDelegate.cpp"
+#include <QSplitter>
 
 MainWindow::MainWindow(QWidget *parent) :
         QMainWindow(parent),
         ui(new Ui::MainWindow),
         model(new QStandardItemModel(this)) {
-//    std::locale::global(std::locale("en_US.utf8"));
+
     ui->setupUi(this);
     ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)),
@@ -23,8 +24,14 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->message->setWordWrapMode(QTextOption::WrapAnywhere);
     ui->clearButton->setEnabled(false);
     ui->message->setAcceptDrops(false);  // 禁止 QTextEdit 接收拖拽事件
+    ui->connectButton->click();
     this->setAcceptDrops(true);  // 允许 MainWindow 接收拖拽事件
-
+//    auto *splitter = new QSplitter(Qt::Vertical, this);
+//    splitter->addWidget(ui->log);
+//    splitter->addWidget(ui->location);
+//    splitter->addWidget(ui->message);
+//    // 将 QSplitter 添加到 MainWindow 的布局中
+//    ui->verticalLayout->addWidget(splitter);
 //    connect(client, &WebSocketClient::connected, client, &WebSocketClient::messageToSend);
 //    connect(client, &WebSocketClient::messageToSend, this, &MainWindow::onMessageToSend);
 }
@@ -63,9 +70,7 @@ void MainWindow::on_sendButton_clicked() {
         for (int i = 0; i < modelList->rowCount(); i++) {
             QStandardItem * item = modelList->item(i, 0);  // 获取第 i 行，第 0 列的元素
             // 打开文件
-            QString qstr = item->text();
-            std::string str = std::string(qstr.toLocal8Bit().constData());
-            client->sendFile(str);
+            client->sendFile(item->text().toStdString());
         }
     } else {
         std::string message = ui->message->toPlainText().toStdString();

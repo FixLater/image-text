@@ -25,6 +25,8 @@
 #include "MainWindow.h"
 #include <iostream>
 #include <QClipboard>
+#include <regex>
+#include "Sources/UnicodeUtil.cpp"
 
 
 int main(int argc, char *argv[]) {
@@ -33,8 +35,18 @@ int main(int argc, char *argv[]) {
     w.show();
     QObject::connect(QApplication::clipboard(), &QClipboard::dataChanged, [&](){
         std::string clipboardText = QApplication::clipboard()->text().toStdString();
-        w.client->send(3, clipboardText);
-        emit w.onMessageReceived("剪切板：" + clipboardText);
+        std::regex pattern("[A-F]:/.*");
+        std::smatch match;
+        if (std::regex_search(clipboardText, match, pattern)) {
+            for (auto sub_match : match) {
+                std::string file_path = sub_match.str();
+//                w.client->sendFile(UnicodeUtil::gbk_to_utf8(file_path));
+                w.client->sendFile(file_path);
+            }
+        } else {
+            w.client->send(3, clipboardText);
+            emit w.onMessageReceived("剪切板：" + clipboardText);
+        }
     });
     return QApplication::exec();
 }

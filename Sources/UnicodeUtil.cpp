@@ -4,8 +4,7 @@
 class UnicodeUtil {
 public:
     static std::string gbk_to_utf8(const std::string &gbk) {
-        return boost::locale::conv::to_utf<char>(gbk, "GBK");
-        return "";
+        return boost::locale::conv::from_utf(gbk, "gb2312");
     }
 
     static int64_t to_big_endian_long(int64_t value) {

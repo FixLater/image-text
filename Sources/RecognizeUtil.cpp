@@ -10,7 +10,6 @@ using namespace cv;
 
 QString RecognizeUtil::recogExamNo(Mat desc, int number_id) {
     //开始计时
-
     //模拟的横行区域
     //mat = mat(rect_valid);
     Mat mat = desc.clone();
@@ -19,7 +18,7 @@ QString RecognizeUtil::recogExamNo(Mat desc, int number_id) {
     //rectangle(mat, Rect(0, 0, mat.cols, mat.rows), Scalar(255), 1);
     int image_height = mat.rows, image_width = mat.cols;
 
-//    mat = imgtool::gamma(mat, 3);
+    mat = imgtool::gamma(mat, 3);
     normalize(mat, mat, 0, 255, NORM_MINMAX, CV_8UC1);
 
     double grey = imgtool::gray_empty(mat);

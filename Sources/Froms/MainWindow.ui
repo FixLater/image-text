@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>615</width>
-    <height>317</height>
+    <height>314</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -82,14 +82,14 @@
        <widget class="QTextEdit" name="message">
         <property name="minimumSize">
          <size>
-          <width>293</width>
-          <height>50</height>
+          <width>0</width>
+          <height>0</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>227</width>
-          <height>10</height>
+          <width>16777215</width>
+          <height>200</height>
          </size>
         </property>
        </widget>
@@ -129,20 +129,14 @@
        </layout>
       </item>
       <item>
-       <widget class="QTableView" name="tableView"/>
-      </item>
-      <item>
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
+       <widget class="QTableView" name="tableView">
+        <property name="minimumSize">
          <size>
-          <width>20</width>
-          <height>40</height>
+          <width>0</width>
+          <height>50</height>
          </size>
         </property>
-       </spacer>
+       </widget>
       </item>
      </layout>
     </item>
@@ -161,12 +155,6 @@
          <size>
           <width>199</width>
           <height>240</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>328</width>
-          <height>16777215</height>
          </size>
         </property>
         <property name="readOnly">
