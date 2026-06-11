@@ -12,6 +12,7 @@ QtWebSocketClient::QtWebSocketClient(const QString &url, const WebSocketConfig &
     , m_handshakeComplete(false)
     , m_manualDisconnect(false)
     , m_config(config)
+    , m_pingTimer(new QTimer(this))
     , m_reconnectTimer(new QTimer(this))
     , m_reconnectAttempts(0)
 {
@@ -32,9 +33,11 @@ QtWebSocketClient::QtWebSocketClient(const QString &url, const WebSocketConfig &
     connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
             this, &QtWebSocketClient::onErrorOccurred);
     connect(m_reconnectTimer, &QTimer::timeout, this, &QtWebSocketClient::attemptReconnect);
+    connect(m_pingTimer, &QTimer::timeout, this, &QtWebSocketClient::sendPing);
 }
 
 QtWebSocketClient::~QtWebSocketClient() {
+    m_pingTimer->stop();
     m_reconnectTimer->stop();
     if (m_socket->state() != QAbstractSocket::UnconnectedState) {
         m_socket->disconnectFromHost();
@@ -51,6 +54,7 @@ void QtWebSocketClient::connectToServer() {
 }
 
 void QtWebSocketClient::disconnectFromServer() {
+    m_pingTimer->stop();
     m_reconnectTimer->stop();
     m_manualDisconnect = true;
     m_handshakeComplete = false;
@@ -69,6 +73,8 @@ void QtWebSocketClient::onConnected() {
     } else {
         m_handshakeComplete = true;
         m_reconnectAttempts = 0;
+        m_reconnectTimer->stop();
+        startPingTimer();
         emit connected();
     }
 }
@@ -102,6 +108,8 @@ void QtWebSocketClient::onReadyRead() {
         if (response.contains(" 101 ") || response.startsWith("HTTP/1.1 101")) {
             m_handshakeComplete = true;
             m_reconnectAttempts = 0;
+            m_reconnectTimer->stop();
+            startPingTimer();
             emit connected();
         } else {
             QString reason = QString::fromUtf8(response.left(200));
@@ -282,6 +290,7 @@ void QtWebSocketClient::sendImage(const QString &filePath) {
 }
 
 void QtWebSocketClient::onDisconnected() {
+    m_pingTimer->stop();
     m_handshakeComplete = false;
     m_receiveBuffer.clear();
     emit disconnected();
@@ -331,4 +340,26 @@ void QtWebSocketClient::sendBinaryMessage(const QByteArray &data) {
     } else {
         emit errorOccurred("Not connected to server");
     }
+}
+
+void QtWebSocketClient::startPingTimer() {
+    if (m_config.pingIntervalMs > 0) {
+        m_pingTimer->start(m_config.pingIntervalMs);
+    }
+}
+
+void QtWebSocketClient::sendPing() {
+    if (!isConnected()) return;
+
+    QByteArray frame;
+    frame.append(static_cast<char>(0x89));
+
+    QByteArray mask(4, '\0');
+    for (int i = 0; i < 4; i++) {
+        mask[i] = static_cast<char>(QRandomGenerator::global()->bounded(256));
+    }
+    frame.append(static_cast<char>(0x80));
+    frame.append(mask);
+
+    m_socket->write(frame);
 }

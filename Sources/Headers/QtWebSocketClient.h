@@ -10,6 +10,7 @@
 
 struct WebSocketConfig {
     QString jwtToken;
+    int pingIntervalMs = 30000;
     int reconnectIntervalMs = 5000;
     int maxReconnectAttempts = 500;
 };
@@ -44,6 +45,7 @@ private slots:
     void onDisconnected();
     void onErrorOccurred(QAbstractSocket::SocketError error);
     void attemptReconnect();
+    void sendPing();
 
 private:
     void sendRawText(const QString &message);
@@ -53,6 +55,7 @@ private:
     QByteArray encodeFrame(const QByteArray &data, bool isBinary = false);
     QByteArray generateWebSocketKey();
     QByteArray readAllFile(const QString &filePath);
+    void startPingTimer();
 
     QString m_host;
     QString m_port;
@@ -62,6 +65,7 @@ private:
     bool m_handshakeComplete;
     bool m_manualDisconnect;
     WebSocketConfig m_config;
+    QTimer *m_pingTimer;
     QTimer *m_reconnectTimer;
     int m_reconnectAttempts;
     QByteArray m_receiveBuffer;

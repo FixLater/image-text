@@ -41,6 +41,7 @@ void MainWindow::on_connectButton_clicked() {
 
     WebSocketConfig config;
     config.jwtToken = "puppeteer";
+    config.pingIntervalMs = 30000;
     config.reconnectIntervalMs = 5000;
     config.maxReconnectAttempts = 500;
 
