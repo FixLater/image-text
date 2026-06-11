@@ -27,7 +27,7 @@
       <item>
        <widget class="QLineEdit" name="location">
         <property name="text">
-         <string>ws://127.0.0.1:8765/</string>
+         <string>ws://127.0.0.1:8200/websocket</string>
         </property>
        </widget>
       </item>
