@@ -66,6 +66,7 @@ private:
     void addFiles(const QStringList &files);
     void applyApiFoxStyle();
     void updateStatusStyle();
+    void updateSendButtonState();
     bool isInTitleBarArea(const QPoint &pos) const;
 
     void onConnected();

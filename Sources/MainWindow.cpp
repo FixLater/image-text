@@ -51,6 +51,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->message->setAcceptDrops(false);
     this->setAcceptDrops(true);
 
+    connect(ui->message, &QTextEdit::textChanged, this, &MainWindow::updateSendButtonState);
+
     connect(ui->tabMessage, &QPushButton::clicked, this, [this]() {
         if (m_activeTabIndex < 0) return;
         ui->message->show();
@@ -65,6 +67,7 @@ MainWindow::MainWindow(QWidget *parent) :
             "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
             "QPushButton:hover { color: #94a3b8; }"
         );
+        updateSendButtonState();
     });
     connect(ui->tabFiles, &QPushButton::clicked, this, [this]() {
         if (m_activeTabIndex < 0) return;
@@ -80,6 +83,7 @@ MainWindow::MainWindow(QWidget *parent) :
             "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
             "QPushButton:hover { color: #94a3b8; }"
         );
+        updateSendButtonState();
     });
 
     ui->tabMessage->setStyleSheet(
@@ -143,6 +147,7 @@ void MainWindow::switchToTab(int index) {
     bool hasClient = tab.client && tab.client->isConnected();
     ui->connectButton->setEnabled(!hasClient);
     ui->disconnectButton->setEnabled(hasClient);
+    ui->location->setEnabled(!hasClient);
     ui->sendButton->setEnabled(hasClient);
 
     bool connected = hasClient;
@@ -320,11 +325,15 @@ void MainWindow::applyApiFoxStyle() {
         "  border-radius: 6px; padding: 6px 20px; font-size: 9pt; font-weight: bold;"
         "}"
         "#connectButton:hover { background-color: #38bdf8; }"
+        "#connectButton:pressed { background-color: #0284c7; }"
+        "#connectButton:disabled { background-color: #1e293b; color: #475569; }"
         "#disconnectButton {"
         "  background-color: #374151; color: #9ca3af; border: none;"
         "  border-radius: 6px; padding: 6px 20px; font-size: 9pt;"
         "}"
         "#disconnectButton:hover { background-color: #4b5563; color: #d1d5db; }"
+        "#disconnectButton:pressed { background-color: #374151; }"
+        "#disconnectButton:disabled { background-color: #1e293b; color: #475569; }"
         "#disconnectButton:enabled { background-color: #ef4444; color: #ffffff; }"
         "#disconnectButton:enabled:hover { background-color: #f87171; }"
 
@@ -334,6 +343,7 @@ void MainWindow::applyApiFoxStyle() {
         "  padding: 8px 12px; font-size: 10pt; selection-background-color: #0ea5e9;"
         "}"
         "QLineEdit:focus { border: 1px solid #0ea5e9; }"
+        "QLineEdit:disabled { background-color: #1e293b; color: #475569; border: 1px solid #1e293b; }"
 
         "QTextEdit {"
         "  background-color: #0f172a; color: #e2e8f0;"
@@ -387,6 +397,7 @@ void MainWindow::applyApiFoxStyle() {
         "  border-radius: 6px; padding: 6px 24px; font-size: 9pt; font-weight: bold;"
         "}"
         "#sendButton:hover { background-color: #38bdf8; }"
+        "#sendButton:pressed { background-color: #0284c7; }"
         "#sendButton:disabled { background-color: #1e293b; color: #475569; }"
 
         "#minimizeBtn, #maximizeBtn {"
@@ -749,7 +760,21 @@ void MainWindow::appendLog(const QString &message, const QString &type) {
 void MainWindow::updateButtonStates(bool connected) {
     ui->connectButton->setEnabled(!connected);
     ui->disconnectButton->setEnabled(connected);
-    ui->sendButton->setEnabled(connected);
+    ui->location->setEnabled(!connected);
+    updateSendButtonState();
+}
+
+void MainWindow::updateSendButtonState() {
+    if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size()) {
+        ui->sendButton->setEnabled(false);
+        return;
+    }
+    auto &tab = m_tabs[m_activeTabIndex];
+    bool connected = tab.client && tab.client->isConnected();
+    bool hasMessage = !ui->message->toPlainText().trimmed().isEmpty();
+    bool hasFiles = tab.fileModel && tab.fileModel->rowCount() > 0;
+    bool canSend = connected && (hasMessage || hasFiles);
+    ui->sendButton->setEnabled(canSend);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
