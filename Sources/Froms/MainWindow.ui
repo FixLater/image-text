@@ -205,7 +205,7 @@
            <bool>false</bool>
           </property>
           <widget class="QWidget" name="messagePanel">
-           <layout class="QVBoxLayout" name="messageLayout">
+             <layout class="QVBoxLayout" name="messageLayout">
             <property name="spacing">
              <number>0</number>
             </property>
@@ -219,7 +219,7 @@
              <number>12</number>
             </property>
             <property name="bottomMargin">
-             <number>8</number>
+             <number>12</number>
             </property>
             <item>
              <widget class="QWidget" name="msgTabBar">
@@ -292,6 +292,9 @@
             <item>
              <layout class="QHBoxLayout" name="sendRowLayout">
               <property name="spacing">
+               <number>8</number>
+              </property>
+              <property name="topMargin">
                <number>8</number>
               </property>
               <item>

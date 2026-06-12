@@ -56,13 +56,43 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->message->show();
         ui->tableView->hide();
         ui->selectFile->hide();
+        ui->tabMessage->setStyleSheet(
+            "QPushButton { background: transparent; color: #0ea5e9; border: none;"
+            "  border-bottom: 2px solid #0ea5e9; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+        );
+        ui->tabFiles->setStyleSheet(
+            "QPushButton { background: transparent; color: #475569; border: none;"
+            "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+            "QPushButton:hover { color: #94a3b8; }"
+        );
     });
     connect(ui->tabFiles, &QPushButton::clicked, this, [this]() {
         if (m_activeTabIndex < 0) return;
         ui->message->hide();
         ui->tableView->show();
         ui->selectFile->show();
+        ui->tabFiles->setStyleSheet(
+            "QPushButton { background: transparent; color: #0ea5e9; border: none;"
+            "  border-bottom: 2px solid #0ea5e9; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+        );
+        ui->tabMessage->setStyleSheet(
+            "QPushButton { background: transparent; color: #475569; border: none;"
+            "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+            "QPushButton:hover { color: #94a3b8; }"
+        );
     });
+
+    ui->tabMessage->setStyleSheet(
+        "QPushButton { background: transparent; color: #0ea5e9; border: none;"
+        "  border-bottom: 2px solid #0ea5e9; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+    );
+    ui->tabFiles->setStyleSheet(
+        "QPushButton { background: transparent; color: #475569; border: none;"
+        "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+        "QPushButton:hover { color: #94a3b8; }"
+    );
+    ui->tableView->hide();
+    ui->selectFile->hide();
 
     addNewTab("ws://127.0.0.1:8200/websocket");
 }
@@ -150,68 +180,104 @@ void MainWindow::rebuildTabBar() {
     auto *layout = qobject_cast<QBoxLayout *>(ui->titleBarWidget->layout());
     if (!layout) return;
 
-    // 移除所有控件但不删除
     while (layout->count() > 0) {
-        layout->takeAt(0);
+        auto *item = layout->takeAt(0);
+        if (auto *w = item->widget()) {
+            if (w != ui->minimizeBtn && w != ui->maximizeBtn && w != ui->closeBtn && w != ui->tabAdd) {
+                w->deleteLater();
+            }
+        }
+        delete item;
     }
 
-    // 创建标签页按钮
     for (int i = 0; i < m_tabs.size(); i++) {
-        auto *tabBtn = new QPushButton(ui->titleBarWidget);
+        auto *tabWidget = new QWidget(ui->titleBarWidget);
+        tabWidget->setObjectName("tabWidget");
+        tabWidget->setCursor(Qt::PointingHandCursor);
+        tabWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+
+        auto *tabLayout = new QHBoxLayout(tabWidget);
+        tabLayout->setContentsMargins(12, 4, 6, 4);
+        tabLayout->setSpacing(6);
+
+        auto *iconLabel = new QLabel("⚡", tabWidget);
+        iconLabel->setStyleSheet("font-size: 10pt; background: transparent; border: none;");
+
+        auto *textLabel = new QLabel(tabWidget);
         QString display = m_tabs[i].url;
         display.replace("ws://", "").replace("wss://", "");
-        if (display.length() > 25) display = display.left(22) + "...";
-        tabBtn->setText("  " + display + "  ");
-        tabBtn->setObjectName("tabBtn");
-        tabBtn->setProperty("tabIndex", i);
-        tabBtn->setProperty("active", i == m_activeTabIndex);
-        tabBtn->setCursor(Qt::PointingHandCursor);
-        tabBtn->setMinimumWidth(80);
-        tabBtn->setMaximumWidth(180);
+        if (display.length() > 22) display = display.left(19) + "...";
+        textLabel->setText(display);
+        textLabel->setStyleSheet("font-size: 9pt; background: transparent; border: none;");
+        textLabel->setMaximumWidth(160);
 
-        connect(tabBtn, &QPushButton::clicked, this, [this, i]() { switchToTab(i); });
+        auto *closeBtn = new QPushButton("×", tabWidget);
+        closeBtn->setFixedSize(18, 18);
+        closeBtn->setObjectName("tabCloseBtn");
+        closeBtn->setCursor(Qt::PointingHandCursor);
 
-        layout->addWidget(tabBtn);
+        tabLayout->addWidget(iconLabel);
+        tabLayout->addWidget(textLabel, 1);
+        tabLayout->addWidget(closeBtn);
+
+        bool active = (i == m_activeTabIndex);
+        if (active) {
+            tabWidget->setStyleSheet(
+                "#tabWidget { background-color: #1a1a2e; border-radius: 6px 6px 0 0; }"
+            );
+            textLabel->setStyleSheet("color: #e2e8f0; font-size: 9pt; background: transparent; border: none;");
+            closeBtn->setStyleSheet("QPushButton { color: #94a3b8; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #334155; color: #e2e8f0; }");
+        } else {
+            tabWidget->setStyleSheet(
+                "#tabWidget { background-color: #111827; border-radius: 6px 6px 0 0; }"
+                "#tabWidget:hover { background-color: #1f2937; }"
+            );
+            textLabel->setStyleSheet("color: #4b5563; font-size: 9pt; background: transparent; border: none;");
+            closeBtn->setStyleSheet("QPushButton { color: #374151; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #374151; color: #e2e8f0; }");
+        }
+
+        connect(tabWidget, &QWidget::customContextMenuRequested, this, [this, i, tabWidget](QPoint pos) {
+            QMenu menu(this);
+            menu.setStyleSheet(
+                "QMenu { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px; }"
+                "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
+                "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
+            );
+            QAction closeCurrent("关闭当前标签", this);
+            connect(&closeCurrent, &QAction::triggered, this, [this, i]() { removeTab(i); });
+            menu.addAction(&closeCurrent);
+
+            if (m_tabs.size() > 1) {
+                QAction closeOthers("关闭其他标签", this);
+                connect(&closeOthers, &QAction::triggered, this, [this, i]() {
+                    for (int j = m_tabs.size() - 1; j >= 0; j--) {
+                        if (j != i) removeTab(j);
+                    }
+                    switchToTab(qMin(i, m_tabs.size() - 1));
+                });
+                menu.addAction(&closeOthers);
+            }
+            menu.exec(tabWidget->mapToGlobal(pos));
+        });
+
+        connect(closeBtn, &QPushButton::clicked, this, [this, i]() { removeTab(i); });
+
+        tabWidget->installEventFilter(this);
+
+        layout->addWidget(tabWidget);
     }
 
-    // + 按钮
     layout->addWidget(ui->tabAdd);
-
-    // spacer 推到右侧
     layout->addStretch(1);
-
-    // 窗口按钮固定最右
     layout->addWidget(ui->minimizeBtn);
     layout->addWidget(ui->maximizeBtn);
     layout->addWidget(ui->closeBtn);
 
     ui->tabAdd->setStyleSheet(
-        "QPushButton { background: transparent; color: #64748b; border: none;"
-        "  font-size: 14pt; font-weight: bold; padding: 0 8px; }"
-        "QPushButton:hover { color: #e2e8f0; }"
+        "QPushButton { background: transparent; color: #374151; border: none;"
+        "  font-size: 14pt; font-weight: bold; padding: 0 8px; border-radius: 4px; }"
+        "QPushButton:hover { color: #d1d5db; background-color: #1f2937; }"
     );
-
-    for (int i = 0; i < layout->count(); i++) {
-        auto *item = layout->itemAt(i);
-        if (!item || !item->widget()) continue;
-        auto *w = item->widget();
-        if (w->objectName() == "tabBtn") {
-            bool active = w->property("active").toBool();
-            if (active) {
-                w->setStyleSheet(
-                    "QPushButton { background-color: #16213e; color: #e2e8f0; border: none;"
-                    "  border-radius: 6px 6px 0 0; padding: 6px 16px; font-size: 9pt;"
-                    "  border-bottom: 2px solid #0ea5e9; }"
-                );
-            } else {
-                w->setStyleSheet(
-                    "QPushButton { background-color: #0f172a; color: #94a3b8; border: none;"
-                    "  border-radius: 6px 6px 0 0; padding: 6px 16px; font-size: 9pt; }"
-                    "QPushButton:hover { color: #e2e8f0; background-color: #1e293b; }"
-                );
-            }
-        }
-    }
 }
 
 void MainWindow::removeTab(int index) {
@@ -247,7 +313,7 @@ void MainWindow::applyApiFoxStyle() {
         "QMainWindow { background-color: #1a1a2e; }"
         "QWidget { color: #e0e0e0; }"
 
-        "#titleBarWidget { background-color: #0f172a; }"
+        "#titleBarWidget { background-color: #0a0f1a; border-bottom: 1px solid #1a1a2e; }"
 
         "#connectButton {"
         "  background-color: #0ea5e9; color: #ffffff; border: none;"
@@ -293,13 +359,13 @@ void MainWindow::applyApiFoxStyle() {
         "}"
 
         "#tabMessage, #tabFiles {"
-        "  background: transparent; color: #64748b; border: none;"
-        "  border-bottom: 2px solid transparent; padding: 4px 12px;"
+        "  background: transparent; color: #475569; border: none;"
+        "  border-bottom: 2px solid transparent; padding: 6px 16px;"
         "  font-size: 9pt; font-weight: bold; border-radius: 0;"
         "}"
         "#tabMessage:hover, #tabFiles:hover { color: #94a3b8; }"
 
-        "#logTabBar { background-color: #16213e; border-bottom: 1px solid #2d3748; }"
+        "#logTabBar { background-color: #1a1a2e; }"
         "#logLabel { color: #94a3b8; font-size: 9pt; font-weight: bold; }"
 
         "#clearButton {"
@@ -324,15 +390,17 @@ void MainWindow::applyApiFoxStyle() {
         "#sendButton:disabled { background-color: #1e293b; color: #475569; }"
 
         "#minimizeBtn, #maximizeBtn {"
-        "  background: transparent; color: #e2e8f0; border: none; font-size: 14pt;"
+        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
+        "  border-radius: 4px; padding: 4px;"
         "}"
-        "#minimizeBtn:hover, #maximizeBtn:hover { background-color: rgba(255,255,255,0.1); }"
+        "#minimizeBtn:hover, #maximizeBtn:hover { background-color: #1f2937; color: #d1d5db; }"
         "#closeBtn {"
-        "  background: transparent; color: #e2e8f0; border: none; font-size: 14pt;"
+        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
+        "  border-radius: 4px; padding: 4px;"
         "}"
-        "#closeBtn:hover { background-color: #e53e3e; color: #ffffff; }"
+        "#closeBtn:hover { background-color: #dc2626; color: #ffffff; }"
 
-        "#requestBar { background-color: #16213e; border-bottom: 1px solid #2d3748; }"
+        "#requestBar { background-color: #0a0f1a; border-bottom: 1px solid #1a1a2e; }"
         "#statusLabel { font-size: 9pt; }"
 
         "QSplitter::handle { background-color: #1e293b; }"
@@ -442,6 +510,37 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event) {
 void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
     m_isDragging = false;
     QMainWindow::mouseReleaseEvent(event);
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::MouseButtonPress) {
+        auto *mouseEvent = static_cast<QMouseEvent *>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            auto *tabWidget = qobject_cast<QWidget *>(obj);
+            if (tabWidget && tabWidget->objectName() == "tabWidget") {
+                auto *clickedChild = tabWidget->childAt(mouseEvent->pos());
+                if (clickedChild && clickedChild->objectName() == "tabCloseBtn") {
+                    return false;
+                }
+
+                auto *layout = qobject_cast<QBoxLayout *>(ui->titleBarWidget->layout());
+                if (layout) {
+                    int tabIndex = 0;
+                    for (int j = 0; j < layout->count(); j++) {
+                        auto *item = layout->itemAt(j);
+                        if (!item || !item->widget()) continue;
+                        if (item->widget()->objectName() != "tabWidget") continue;
+                        if (item->widget() == tabWidget) {
+                            switchToTab(tabIndex);
+                            return false;
+                        }
+                        tabIndex++;
+                    }
+                }
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void MainWindow::on_connectButton_clicked() {
