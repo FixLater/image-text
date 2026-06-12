@@ -18,18 +18,21 @@
 #endif
 #include "TableItemDelegate.h"
 
-MainWindow::MainWindow(QWidget *parent) :
-        QMainWindow(parent),
-        ui(new Ui::MainWindow),
-        m_contextRow(-1) {
-
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
+                                          ui(new Ui::MainWindow),
+                                          m_contextRow(-1) {
     ui->setupUi(this);
     setWindowFlags(Qt::FramelessWindowHint);
 
     connect(ui->minimizeBtn, &QPushButton::clicked, this, [this]() { showMinimized(); });
     connect(ui->maximizeBtn, &QPushButton::clicked, this, [this]() {
-        if (isMaximized()) { showNormal(); ui->maximizeBtn->setText("□"); }
-        else { showMaximized(); ui->maximizeBtn->setText("❐"); }
+        if (isMaximized()) {
+            showNormal();
+            ui->maximizeBtn->setText("□");
+        } else {
+            showMaximized();
+            ui->maximizeBtn->setText("❐");
+        }
     });
     connect(ui->closeBtn, &QPushButton::clicked, this, &QWidget::close);
 
@@ -102,7 +105,7 @@ MainWindow::MainWindow(QWidget *parent) :
 }
 
 MainWindow::~MainWindow() {
-    for (const auto &tab : m_tabs) {
+    for (const auto &tab: m_tabs) {
         if (tab.client) {
             tab.client->disconnectFromServer();
             tab.client->deleteLater();
@@ -228,17 +231,18 @@ void MainWindow::rebuildTabBar() {
         bool active = (i == m_activeTabIndex);
         if (active) {
             tabWidget->setStyleSheet(
-                "#tabWidget { background-color: #1a1a2e; border-radius: 6px 6px 0 0; }"
+                "#tabWidget { background-color: #191a1c; border-radius: 6px 6px 0 0; }"
             );
             textLabel->setStyleSheet("color: #e2e8f0; font-size: 9pt; background: transparent; border: none;");
-            closeBtn->setStyleSheet("QPushButton { color: #94a3b8; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #334155; color: #e2e8f0; }");
+            closeBtn->setStyleSheet(
+                "QPushButton { color: #94a3b8; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
         } else {
             tabWidget->setStyleSheet(
-                "#tabWidget { background-color: #111827; border-radius: 6px 6px 0 0; }"
-                "#tabWidget:hover { background-color: #1f2937; }"
+                "#tabWidget { background-color: #26282c; border-radius: 6px 6px 0 0; }"
+                "#tabWidget:hover { background-color: #2a2c30; }"
             );
-            textLabel->setStyleSheet("color: #4b5563; font-size: 9pt; background: transparent; border: none;");
-            closeBtn->setStyleSheet("QPushButton { color: #374151; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #374151; color: #e2e8f0; }");
+            textLabel->setStyleSheet("color: #6b7280; font-size: 9pt; background: transparent; border: none;");
+            closeBtn->setStyleSheet("QPushButton { color: #555; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
         }
 
         connect(tabWidget, &QWidget::customContextMenuRequested, this, [this, i, tabWidget](QPoint pos) {
@@ -315,10 +319,10 @@ void MainWindow::removeTab(int index) {
 void MainWindow::applyApiFoxStyle() {
     setStyleSheet(
         "* { font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif; }"
-        "QMainWindow { background-color: #1a1a2e; }"
+        "QMainWindow { background-color: #191a1c; }"
         "QWidget { color: #e0e0e0; }"
 
-        "#titleBarWidget { background-color: #0a0f1a; border-bottom: 1px solid #1a1a2e; }"
+        "#titleBarWidget { background-color: #26282c; }"
 
         "#connectButton {"
         "  background-color: #0ea5e9; color: #ffffff; border: none;"
@@ -326,45 +330,45 @@ void MainWindow::applyApiFoxStyle() {
         "}"
         "#connectButton:hover { background-color: #38bdf8; }"
         "#connectButton:pressed { background-color: #0284c7; }"
-        "#connectButton:disabled { background-color: #1e293b; color: #475569; }"
+        "#connectButton:disabled { background-color: #36383d; color: #555; }"
         "#disconnectButton {"
         "  background-color: #374151; color: #9ca3af; border: none;"
         "  border-radius: 6px; padding: 6px 20px; font-size: 9pt;"
         "}"
         "#disconnectButton:hover { background-color: #4b5563; color: #d1d5db; }"
         "#disconnectButton:pressed { background-color: #374151; }"
-        "#disconnectButton:disabled { background-color: #1e293b; color: #475569; }"
+        "#disconnectButton:disabled { background-color: #36383d; color: #555; }"
         "#disconnectButton:enabled { background-color: #ef4444; color: #ffffff; }"
         "#disconnectButton:enabled:hover { background-color: #f87171; }"
 
         "QLineEdit {"
-        "  background-color: #0f172a; color: #e2e8f0;"
-        "  border: 1px solid #334155; border-radius: 6px;"
+        "  background-color: #1f2023; color: #e2e8f0;"
+        "  border: 1px solid #36383d; border-radius: 6px;"
         "  padding: 8px 12px; font-size: 10pt; selection-background-color: #0ea5e9;"
         "}"
         "QLineEdit:focus { border: 1px solid #0ea5e9; }"
-        "QLineEdit:disabled { background-color: #1e293b; color: #475569; border: 1px solid #1e293b; }"
+        "QLineEdit:disabled { background-color: #26282c; color: #555; border: 1px solid #26282c; }"
 
         "QTextEdit {"
-        "  background-color: #0f172a; color: #e2e8f0;"
-        "  border: 1px solid #334155; border-radius: 6px;"
+        "  background-color: #1f2023; color: #e2e8f0;"
+        "  border: 1px solid #36383d; border-radius: 6px;"
         "  padding: 8px; font-size: 10pt; selection-background-color: #0ea5e9;"
         "}"
         "QTextEdit:focus { border: 1px solid #0ea5e9; }"
 
         "QTableView {"
-        "  background-color: #0f172a; color: #e2e8f0;"
-        "  border: 1px solid #334155; border-radius: 6px;"
-        "  gridline-color: #1e293b;"
+        "  background-color: #1f2023; color: #e2e8f0;"
+        "  border: 1px solid #36383d; border-radius: 6px;"
+        "  gridline-color: #2a2c30;"
         "  selection-background-color: rgba(14, 165, 233, 0.25);"
         "  selection-color: #e2e8f0; outline: none;"
         "}"
-        "QTableView::item { padding: 4px 8px; border-bottom: 1px solid #1e293b; }"
+        "QTableView::item { padding: 4px 8px; border-bottom: 1px solid #2a2c30; }"
         "QTableView::item:selected { background-color: rgba(14, 165, 233, 0.2); border-left: 3px solid #0ea5e9; }"
         "QTableView::item:hover { background-color: rgba(14, 165, 233, 0.1); }"
         "QHeaderView::section {"
-        "  background-color: #16213e; color: #94a3b8;"
-        "  border: none; border-bottom: 1px solid #334155;"
+        "  background-color: #26282c; color: #94a3b8;"
+        "  border: none; border-bottom: 1px solid #36383d;"
         "  padding: 6px 8px; font-size: 9pt; font-weight: bold;"
         "}"
 
@@ -375,19 +379,19 @@ void MainWindow::applyApiFoxStyle() {
         "}"
         "#tabMessage:hover, #tabFiles:hover { color: #94a3b8; }"
 
-        "#logTabBar { background-color: #1a1a2e; }"
+        "#logTabBar { background-color: #26282c; }"
         "#logLabel { color: #94a3b8; font-size: 9pt; font-weight: bold; }"
 
         "#clearButton {"
         "  background-color: transparent; color: #64748b;"
-        "  border: 1px solid #334155; border-radius: 4px;"
+        "  border: 1px solid #36383d; border-radius: 4px;"
         "  padding: 3px 10px; font-size: 8pt;"
         "}"
         "#clearButton:hover { color: #e2e8f0; border-color: #64748b; }"
 
         "#selectFile {"
         "  background-color: transparent; color: #64748b;"
-        "  border: 1px solid #334155; border-radius: 4px;"
+        "  border: 1px solid #36383d; border-radius: 4px;"
         "  padding: 3px 10px; font-size: 8pt;"
         "}"
         "#selectFile:hover { color: #e2e8f0; border-color: #64748b; }"
@@ -398,39 +402,39 @@ void MainWindow::applyApiFoxStyle() {
         "}"
         "#sendButton:hover { background-color: #38bdf8; }"
         "#sendButton:pressed { background-color: #0284c7; }"
-        "#sendButton:disabled { background-color: #1e293b; color: #475569; }"
+        "#sendButton:disabled { background-color: #36383d; color: #555; }"
 
         "#minimizeBtn, #maximizeBtn {"
         "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
         "  border-radius: 4px; padding: 4px;"
         "}"
-        "#minimizeBtn:hover, #maximizeBtn:hover { background-color: #1f2937; color: #d1d5db; }"
+        "#minimizeBtn:hover, #maximizeBtn:hover { background-color: #36383d; color: #d1d5db; }"
         "#closeBtn {"
         "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
         "  border-radius: 4px; padding: 4px;"
         "}"
         "#closeBtn:hover { background-color: #dc2626; color: #ffffff; }"
 
-        "#requestBar { background-color: #0a0f1a; border-bottom: 1px solid #1a1a2e; }"
+        "#requestBar { background-color: #191a1c; }"
         "#statusLabel { font-size: 9pt; }"
 
-        "QSplitter::handle { background-color: #1e293b; }"
+        "QSplitter::handle { background-color: #36383d; }"
         "QSplitter::handle:horizontal { width: 1px; }"
         "QSplitter::handle:vertical { height: 1px; }"
         "QSplitter::handle:hover { background-color: #0ea5e9; }"
 
         "QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
-        "QScrollBar::handle:vertical { background-color: #334155; border-radius: 4px; min-height: 20px; }"
+        "QScrollBar::handle:vertical { background-color: #36383d; border-radius: 4px; min-height: 20px; }"
         "QScrollBar::handle:vertical:hover { background-color: #475569; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
         "QScrollBar:horizontal { background: transparent; height: 8px; margin: 0; }"
-        "QScrollBar::handle:horizontal { background-color: #334155; border-radius: 4px; min-width: 20px; }"
+        "QScrollBar::handle:horizontal { background-color: #36383d; border-radius: 4px; min-width: 20px; }"
         "QScrollBar::handle:horizontal:hover { background-color: #475569; }"
         "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"
 
         "QMenu {"
-        "  background-color: #1e293b; color: #e2e8f0;"
-        "  border: 1px solid #334155; border-radius: 6px; padding: 4px;"
+        "  background-color: #2a2c30; color: #e2e8f0;"
+        "  border: 1px solid #36383d; border-radius: 6px; padding: 4px;"
         "}"
         "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
         "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
@@ -438,7 +442,7 @@ void MainWindow::applyApiFoxStyle() {
 
     ui->log->setStyleSheet(
         "QTextBrowser {"
-        "  background-color: #0f172a; color: #cbd5e1; border: none;"
+        "  background-color: #1f2023; color: #cbd5e1; border: none;"
         "  font-family: 'Cascadia Code', 'Consolas', monospace;"
         "  font-size: 9pt; padding: 8px 12px;"
         "}"
@@ -482,17 +486,37 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
 
             const int borderSize = 6;
             if (cursor.y < borderSize) {
-                if (cursor.x < borderSize) { *result = HTTOPLEFT; return true; }
-                if (cursor.x > winRect.right - borderSize) { *result = HTTOPRIGHT; return true; }
-                *result = HTTOP; return true;
+                if (cursor.x < borderSize) {
+                    *result = HTTOPLEFT;
+                    return true;
+                }
+                if (cursor.x > winRect.right - borderSize) {
+                    *result = HTTOPRIGHT;
+                    return true;
+                }
+                *result = HTTOP;
+                return true;
             }
             if (cursor.y > winRect.bottom - borderSize) {
-                if (cursor.x < borderSize) { *result = HTBOTTOMLEFT; return true; }
-                if (cursor.x > winRect.right - borderSize) { *result = HTBOTTOMRIGHT; return true; }
-                *result = HTBOTTOM; return true;
+                if (cursor.x < borderSize) {
+                    *result = HTBOTTOMLEFT;
+                    return true;
+                }
+                if (cursor.x > winRect.right - borderSize) {
+                    *result = HTBOTTOMRIGHT;
+                    return true;
+                }
+                *result = HTBOTTOM;
+                return true;
             }
-            if (cursor.x < borderSize) { *result = HTLEFT; return true; }
-            if (cursor.x > winRect.right - borderSize) { *result = HTRIGHT; return true; }
+            if (cursor.x < borderSize) {
+                *result = HTLEFT;
+                return true;
+            }
+            if (cursor.x > winRect.right - borderSize) {
+                *result = HTRIGHT;
+                return true;
+            }
         }
     }
 #endif
@@ -667,7 +691,7 @@ void MainWindow::addFiles(const QStringList &files) {
     if (m_activeTabIndex < 0) return;
     auto &tab = m_tabs[m_activeTabIndex];
 
-    for (const auto &file : files) {
+    for (const auto &file: files) {
         auto *item = new QStandardItem(file);
         item->setData(file, Qt::UserRole);
         tab.fileModel->appendRow(item);
@@ -742,7 +766,7 @@ void MainWindow::appendLog(const QString &message, const QString &type) {
     QRegularExpressionMatchIterator it = urlRegex.globalMatch(escaped);
     QStringList urls;
     while (it.hasNext()) { urls << it.next().captured(0); }
-    for (const QString &url : urls) {
+    for (const QString &url: urls) {
         escaped.replace(url, QString("<a href=\"%1\" class=\"link\">%1</a>").arg(url));
     }
 
@@ -785,7 +809,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
 
 void MainWindow::dropEvent(QDropEvent *event) {
     QStringList files;
-    for (const QUrl &url : event->mimeData()->urls()) {
+    for (const QUrl &url: event->mimeData()->urls()) {
         files.append(url.toLocalFile());
     }
     addFiles(files);
