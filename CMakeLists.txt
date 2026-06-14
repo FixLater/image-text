@@ -16,18 +16,23 @@ endif()
 set(SOURCES
     main.cpp
     Sources/MainWindow.cpp
+    Sources/DashboardPage.cpp
+    Sources/WebSocketPage.cpp
     Sources/QtWebSocketClient.cpp
     Sources/TableItemDelegate.cpp
 )
 
 set(HEADERS
     Sources/Headers/MainWindow.h
+    Sources/Headers/DashboardPage.h
+    Sources/Headers/WebSocketPage.h
     Sources/Headers/QtWebSocketClient.h
     Sources/Headers/TableItemDelegate.h
 )
 
 set(UI_FILES
     Sources/Froms/MainWindow.ui
+    Sources/Froms/WebSocketPage.ui
 )
 
 add_executable(image_test ${SOURCES} ${HEADERS} ${UI_FILES})

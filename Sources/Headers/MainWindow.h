@@ -2,20 +2,13 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QStandardItemModel>
-#include <QVector>
+#include <QStackedWidget>
 #include <QPushButton>
+#include <QLabel>
+#include <QVector>
 
-class QtWebSocketClient;
-
-struct TabState {
-    QString url;
-    QString messageText;
-    QtWebSocketClient *client = nullptr;
-    QStandardItemModel *fileModel = nullptr;
-    QString logHtml;
-    bool showFiles = false;
-};
+class DashboardPage;
+class WebSocketPage;
 
 namespace Ui {
     class MainWindow;
@@ -29,8 +22,6 @@ public:
     ~MainWindow() override;
 
 protected:
-    void dragEnterEvent(QDragEnterEvent *event) override;
-    void dropEvent(QDropEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -38,42 +29,29 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
-    void on_connectButton_clicked();
-    void on_disconnectButton_clicked();
-    void on_sendButton_clicked();
-    void on_clearButton_clicked();
-    void on_selectFile_clicked();
-    void onContextMenuRequested(QPoint pos);
-    void onActionDelete();
-    void onActionReplace();
+    void navigateTo(const QString &moduleName);
+    void navigateBack();
+    void onModuleClicked(const QString &moduleName);
 
 private:
     Ui::MainWindow *ui;
-    int m_contextRow;
     QPoint m_dragPosition;
     bool m_isDragging = false;
 
-    QVector<TabState> m_tabs;
-    int m_activeTabIndex = -1;
+    DashboardPage *m_dashboardPage;
+    WebSocketPage *m_websocketPage;
 
-    void addNewTab(const QString &url = "ws://127.0.0.1:8200/websocket");
-    void switchToTab(int index);
-    void rebuildTabBar();
-    void removeTab(int index);
-
-    void appendLog(const QString &message, const QString &type = "info");
-    void updateButtonStates(bool connected);
-    void addFiles(const QStringList &files);
-    void applyApiFoxStyle();
-    void updateStatusStyle();
-    void updateSendButtonState();
+    void initPages();
+    void updateBreadcrumb(const QString &path);
     bool isInTitleBarArea(const QPoint &pos) const;
+    void applyTitleBarStyle();
 
-    void onConnected();
-    void onDisconnected();
-    void onMessageReceived(const QString &message);
-    void onErrorOccurred(const QString &error);
-    void onReconnecting(int attempt, int maxAttempts);
+    void rebuildTabBar();
+    void onTabAddClicked();
+    void onTabClicked(int index);
+    void onTabCloseClicked(int index);
+    void showTabBar(bool show);
+    int m_activeTabIndex = -1;
 };
 
 #endif // MAINWINDOW_H
