@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->minimizeBtn->setFixedSize(36, 36);
     ui->maximizeBtn->setFixedSize(36, 36);
     ui->closeBtn->setFixedSize(36, 36);
-    ui->tabAdd->setFixedSize(32, 28);
+    ui->tabAdd->setFixedSize(32, 24);
 
     connect(ui->backBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
     connect(ui->homeBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
@@ -192,19 +192,19 @@ void MainWindow::rebuildTabBar() {
         bool isActive = (i == active);
         if (isActive) {
             tabWidget->setStyleSheet(
-                "#tabWidget { background-color: #1a1b1e; border-radius: 6px 6px 0 0; }"
+                "#tabWidget { background-color: #1a1b1e; border-radius: 0; }"
             );
             tabWidget->setContentsMargins(4, 4, 4, 0);
             textLabel->setStyleSheet("color: #e2e8f0; font-size: 9pt; background: transparent; border: none;");
             closeBtn->setStyleSheet(
-                "QPushButton { color: #94a3b8; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
+                "QPushButton { color: #94a3b8; background: transparent; border: none; font-size: 10pt; border-radius: 3px; padding: 1px 0 3px 0; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
         } else {
             tabWidget->setStyleSheet(
-                "#tabWidget { background-color: #222326; border-radius: 6px 6px 0 0; }"
+                "#tabWidget { background-color: #222326; border-radius: 0; }"
             );
             tabWidget->setContentsMargins(0, 4, 0, 0);
             textLabel->setStyleSheet("color: #6b7280; font-size: 9pt; background: transparent; border: none;");
-            closeBtn->setStyleSheet("QPushButton { color: #555; background: transparent; border: none; font-size: 10pt; border-radius: 3px; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
+            closeBtn->setStyleSheet("QPushButton { color: #555; background: transparent; border: none; font-size: 10pt; border-radius: 3px; padding: 1px 0 3px 0; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
         }
 
         connect(tabWidget, &QWidget::customContextMenuRequested, this, [this, i, tabWidget](QPoint pos) {
@@ -286,31 +286,35 @@ void MainWindow::applyTitleBarStyle() {
         "QWidget { color: #e0e0e0; }"
 
         "#titleBarWidget { background-color: #26282c; }"
-        "#tabBarWidget { background-color: #222326; }"
+        "#tabBarWidget { background-color: #222326; border-radius: 0; }"
 
         "#backBtn, #homeBtn {"
         "  background: transparent; color: #94a3b8; border: none; font-size: 11pt;"
-        "  border-radius: 4px; padding: 4px 8px;"
+        "  border-radius: 4px; padding: 3px 4px 5px 8px;"
         "}"
         "#backBtn:hover, #homeBtn:hover { background-color: #36383d; color: #e2e8f0; }"
 
         "#breadcrumbSeparator1 {"
         "  color: #475569; font-size: 11pt; background: transparent; border: none;"
-        "  padding: 0 4px;"
+        "  padding: 3px 4px 5px 8px;"
         "}"
 
         "#breadcrumbLabel {"
         "  color: #94a3b8; font-size: 9pt; background: transparent; border: none;"
         "}"
 
-        "#minimizeBtn, #maximizeBtn {"
+        "#minimizeBtn {"
         "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
-        "  border-radius: 4px; padding: 4px;"
+        "  border-radius: 4px; padding: 2px 4px 6px 4px;"
+        "}"
+        "#maximizeBtn {"
+        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
+        "  border-radius: 4px; padding: 0px 4px 8px 4px;"
         "}"
         "#minimizeBtn:hover, #maximizeBtn:hover { background-color: #36383d; color: #d1d5db; }"
         "#closeBtn {"
         "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
-        "  border-radius: 4px; padding: 4px;"
+        "  border-radius: 4px; padding: 2px 4px 6px 4px;"
         "}"
         "#closeBtn:hover { background-color: #dc2626; color: #ffffff; }"
 

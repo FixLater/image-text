@@ -56,11 +56,11 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
         ui->selectFile->hide();
         ui->tabMessage->setStyleSheet(
             "QPushButton { background: transparent; color: #0ea5e9; border: none;"
-            "  border-bottom: 2px solid #0ea5e9; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+            "  padding: 6px 8px; font-size: 9pt; font-weight: bold; }"
         );
         ui->tabFiles->setStyleSheet(
             "QPushButton { background: transparent; color: #475569; border: none;"
-            "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+            "  padding: 6px 8px; font-size: 9pt; font-weight: bold; }"
             "QPushButton:hover { color: #94a3b8; }"
         );
         updateSendButtonState();
@@ -72,11 +72,11 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
         ui->selectFile->show();
         ui->tabFiles->setStyleSheet(
             "QPushButton { background: transparent; color: #0ea5e9; border: none;"
-            "  border-bottom: 2px solid #0ea5e9; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+            "  padding: 6px 8px; font-size: 9pt; font-weight: bold; }"
         );
         ui->tabMessage->setStyleSheet(
             "QPushButton { background: transparent; color: #475569; border: none;"
-            "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+            "  padding: 6px 8px; font-size: 9pt; font-weight: bold; }"
             "QPushButton:hover { color: #94a3b8; }"
         );
         updateSendButtonState();
@@ -84,11 +84,11 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
 
     ui->tabMessage->setStyleSheet(
         "QPushButton { background: transparent; color: #0ea5e9; border: none;"
-        "  border-bottom: 2px solid #0ea5e9; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+            "  padding: 6px 8px; font-size: 9pt; font-weight: bold; }"
     );
     ui->tabFiles->setStyleSheet(
         "QPushButton { background: transparent; color: #475569; border: none;"
-        "  border-bottom: 2px solid transparent; padding: 6px 16px; font-size: 9pt; font-weight: bold; }"
+        "  padding: 6px 8px; font-size: 9pt; font-weight: bold; }"
         "QPushButton:hover { color: #94a3b8; }"
     );
     ui->tableView->hide();
@@ -292,7 +292,7 @@ void WebSocketPage::applyApiFoxStyle() {
 
         "#tabMessage, #tabFiles {"
         "  background: transparent; color: #475569; border: none;"
-        "  border-bottom: 2px solid transparent; padding: 6px 16px;"
+        "  border-bottom: 2px solid transparent; padding: 6px 8px;"
         "  font-size: 9pt; font-weight: bold; border-radius: 0;"
         "}"
         "#tabMessage:hover, #tabFiles:hover { color: #94a3b8; }"
@@ -315,10 +315,9 @@ void WebSocketPage::applyApiFoxStyle() {
         "#requestBar { background-color: #191a1c; }"
         "#statusLabel { font-size: 9pt; }"
 
-        "QSplitter::handle { background-color: #36383d; }"
-        "QSplitter::handle:horizontal { width: 1px; }"
-        "QSplitter::handle:vertical { height: 1px; }"
-        "QSplitter::handle:hover { background-color: #0ea5e9; }"
+        "QSplitter::handle { background: transparent; }"
+        "QSplitter::handle:horizontal { width: 0px; }"
+        "QSplitter::handle:vertical { height: 0px; }"
 
         "QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
         "QScrollBar::handle:vertical { background-color: #36383d; border-radius: 4px; min-height: 20px; }"
