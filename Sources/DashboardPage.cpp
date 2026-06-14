@@ -2,6 +2,7 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
+#include <QMouseEvent>
 
 DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     auto *mainLayout = new QVBoxLayout(this);
@@ -36,51 +37,162 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     mainLayout->addStretch(1);
 }
 
+bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::MouseButtonPress) {
+        auto *mouseEvent = static_cast<QMouseEvent *>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            auto *cardWidget = qobject_cast<QWidget *>(obj);
+            if (cardWidget && cardWidget->objectName() == "moduleCard") {
+                for (auto it = m_cardWidgets.constBegin(); it != m_cardWidgets.constEnd(); ++it) {
+                    if (it.value().logPreview && it.value().logPreview->parentWidget() == cardWidget) {
+                        emit moduleClicked(it.key());
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    return QWidget::eventFilter(obj, event);
+}
+
+void DashboardPage::updateCardStatus(const QString &moduleName, bool connected) {
+    if (!m_cardWidgets.contains(moduleName)) return;
+    auto &widgets = m_cardWidgets[moduleName];
+    if (connected) {
+        widgets.statusLabel->setStyleSheet(
+            "background-color: #34d399; border-radius: 4px; min-width: 8px; max-width: 8px;"
+            "min-height: 8px; max-height: 8px; border: none;"
+        );
+    } else {
+        widgets.statusLabel->setStyleSheet(
+            "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
+            "min-height: 8px; max-height: 8px; border: none;"
+        );
+    }
+}
+
+void DashboardPage::appendCardLog(const QString &moduleName, const QString &html) {
+    if (!m_cardWidgets.contains(moduleName)) return;
+    auto &widgets = m_cardWidgets[moduleName];
+    widgets.logPreview->append(html);
+
+    QTextCursor cursor = widgets.logPreview->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    widgets.logPreview->setTextCursor(cursor);
+
+    while (widgets.logPreview->document()->blockCount() > 20) {
+        QTextCursor firstBlock(widgets.logPreview->document());
+        firstBlock.movePosition(QTextCursor::Start);
+        firstBlock.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
+        firstBlock.removeSelectedText();
+    }
+}
+
+void DashboardPage::updateCardTabInfo(const QString &moduleName, int current, int total) {
+    if (!m_cardWidgets.contains(moduleName)) return;
+    auto &widgets = m_cardWidgets[moduleName];
+
+    bool hasMultiple = total > 1;
+    widgets.prevBtn->setVisible(hasMultiple);
+    widgets.nextBtn->setVisible(hasMultiple);
+    widgets.tabLabel->setVisible(hasMultiple);
+
+    widgets.prevBtn->setEnabled(current > 0);
+    widgets.nextBtn->setEnabled(current < total - 1);
+    widgets.tabLabel->setText(QString("%1/%2").arg(current + 1).arg(total));
+}
+
 QWidget *DashboardPage::createCard(const ModuleCard &card) {
-    auto *cardWidget = new QPushButton();
-    cardWidget->setFixedSize(260, 160);
-    cardWidget->setCursor(Qt::PointingHandCursor);
+    auto *cardWidget = new QWidget();
+    cardWidget->setFixedSize(280, 180);
     cardWidget->setObjectName("moduleCard");
+    cardWidget->setCursor(Qt::PointingHandCursor);
 
-    auto *layout = new QVBoxLayout(cardWidget);
-    layout->setContentsMargins(20, 20, 20, 16);
-    layout->setSpacing(0);
+    auto *mainLayout = new QVBoxLayout(cardWidget);
+    mainLayout->setContentsMargins(28, 10, 28, 10);
+    mainLayout->setSpacing(0);
 
-    auto *iconLabel = new QLabel(card.icon);
-    iconLabel->setStyleSheet(
-        "font-size: 24pt; background: transparent; border: none;"
-    );
-    layout->addWidget(iconLabel);
-
-    layout->addSpacing(12);
+    auto *topRow = new QHBoxLayout();
+    topRow->setSpacing(6);
 
     auto *titleLabel = new QLabel(card.title);
     titleLabel->setStyleSheet(
-        "font-size: 12pt; font-weight: bold; color: #e2e8f0; background: transparent; border: none;"
+        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;"
     );
-    layout->addWidget(titleLabel);
+    topRow->addWidget(titleLabel);
 
-    layout->addSpacing(6);
+    topRow->addStretch(1);
 
-    auto *descLabel = new QLabel(card.description);
-    descLabel->setWordWrap(true);
-    descLabel->setStyleSheet(
-        "font-size: 8pt; color: #64748b; background: transparent; border: none;"
+    auto *tabLabel = new QLabel("1/1");
+    tabLabel->setStyleSheet(
+        "font-size: 7pt; color: #475569; background: transparent; border: none;"
     );
-    layout->addWidget(descLabel);
+    tabLabel->setVisible(false);
+    topRow->addWidget(tabLabel);
 
-    layout->addStretch(1);
+    auto *statusLabel = new QLabel();
+    statusLabel->setStyleSheet(
+        "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
+        "min-height: 8px; max-height: 8px; border: none;"
+    );
+    topRow->addWidget(statusLabel);
+
+    mainLayout->addLayout(topRow);
+
+    mainLayout->addSpacing(6);
+
+    auto *logPreview = new QTextBrowser();
+    logPreview->setReadOnly(true);
+    logPreview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    logPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    logPreview->setOpenExternalLinks(false);
+    logPreview->setStyleSheet(
+        "QTextBrowser {"
+        "  background-color: #1f2023; color: #94a3b8;"
+        "  border: 1px solid #36383d; border-radius: 4px;"
+        "  font-family: 'Cascadia Code', 'Consolas', monospace;"
+        "  font-size: 7pt; padding: 6px;"
+        "}"
+    );
+    logPreview->document()->setDefaultStyleSheet(
+        ".timestamp { color: #334155; }"
+        ".info { color: #94a3b8; }"
+        ".error { color: #f87171; }"
+        ".success { color: #34d399; }"
+        ".warning { color: #fbbf24; }"
+    );
+    mainLayout->addWidget(logPreview);
+
+    auto *prevBtn = new QPushButton("◀", cardWidget);
+    prevBtn->setFixedSize(24, 40);
+    prevBtn->move(2, 70);
+    prevBtn->setCursor(Qt::PointingHandCursor);
+    prevBtn->setVisible(false);
+    prevBtn->setStyleSheet(
+        "QPushButton { background-color: rgba(38, 40, 44, 200); color: #64748b; border: none; border-radius: 4px; font-size: 9pt; }"
+        "QPushButton:hover { color: #e2e8f0; background-color: rgba(55, 65, 81, 220); }"
+        "QPushButton:disabled { color: #36383d; background-color: transparent; }"
+    );
+
+    auto *nextBtn = new QPushButton("▶", cardWidget);
+    nextBtn->setFixedSize(24, 40);
+    nextBtn->move(254, 70);
+    nextBtn->setCursor(Qt::PointingHandCursor);
+    nextBtn->setVisible(false);
+    nextBtn->setStyleSheet(
+        "QPushButton { background-color: rgba(38, 40, 44, 200); color: #64748b; border: none; border-radius: 4px; font-size: 9pt; }"
+        "QPushButton:hover { color: #e2e8f0; background-color: rgba(55, 65, 81, 220); }"
+        "QPushButton:disabled { color: #36383d; background-color: transparent; }"
+    );
+
+    m_cardWidgets[card.name] = {statusLabel, logPreview, prevBtn, nextBtn, tabLabel};
 
     cardWidget->setStyleSheet(
         "#moduleCard {"
         "  background-color: #26282c; border: 1px solid #36383d; border-radius: 10px;"
-        "  text-align: left;"
         "}"
         "#moduleCard:hover {"
         "  background-color: #2a2c30; border-color: #0ea5e9;"
-        "}"
-        "#moduleCard:pressed {"
-        "  background-color: #1f2937; border-color: #0ea5e9;"
         "}"
     );
 
@@ -90,8 +202,14 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     shadow->setColor(QColor(0, 0, 0, 60));
     cardWidget->setGraphicsEffect(shadow);
 
-    connect(cardWidget, &QPushButton::clicked, this, [this, card]() {
-        emit moduleClicked(card.name);
+    cardWidget->installEventFilter(this);
+
+    connect(prevBtn, &QPushButton::clicked, this, [this, card]() {
+        emit cardPrevClicked(card.name);
+    });
+
+    connect(nextBtn, &QPushButton::clicked, this, [this, card]() {
+        emit cardNextClicked(card.name);
     });
 
     return cardWidget;

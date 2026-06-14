@@ -34,6 +34,8 @@ public:
     void switchTab(int index);
     void closeTab(int index);
     bool isConnected() const;
+    void connectToCurrentTab();
+    QString tabLogHtml(int index) const;
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -41,6 +43,8 @@ protected:
 
 signals:
     void tabsChanged();
+    void statusChanged(bool connected);
+    void logAppended(int tabIndex, const QString &html);
 
 private slots:
     void on_connectButton_clicked();

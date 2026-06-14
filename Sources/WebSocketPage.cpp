@@ -95,6 +95,7 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
     ui->selectFile->hide();
 
     addTab("ws://127.0.0.1:8200/websocket");
+    connectToCurrentTab();
 }
 
 WebSocketPage::~WebSocketPage() {
@@ -137,6 +138,15 @@ void WebSocketPage::addTab(const QString &url) {
 
     switchTab(m_tabs.size() - 1);
     emit tabsChanged();
+}
+
+void WebSocketPage::connectToCurrentTab() {
+    on_connectButton_clicked();
+}
+
+QString WebSocketPage::tabLogHtml(int index) const {
+    if (index < 0 || index >= m_tabs.size()) return {};
+    return m_tabs[index].logHtml;
 }
 
 void WebSocketPage::switchTab(int index) {
@@ -412,6 +422,7 @@ void WebSocketPage::onConnected() {
     ui->statusLabel->setProperty("connected", true);
     updateStatusStyle();
     emit tabsChanged();
+    emit statusChanged(true);
 }
 
 void WebSocketPage::onDisconnected() {
@@ -420,6 +431,7 @@ void WebSocketPage::onDisconnected() {
     ui->statusLabel->setProperty("connected", false);
     updateStatusStyle();
     emit tabsChanged();
+    emit statusChanged(false);
 }
 
 void WebSocketPage::onMessageReceived(const QString &message) {
@@ -561,6 +573,8 @@ void WebSocketPage::appendLog(const QString &message, const QString &type) {
     QTextCursor cursor = ui->log->textCursor();
     cursor.movePosition(QTextCursor::End);
     ui->log->setTextCursor(cursor);
+
+    emit logAppended(m_activeTabIndex, html);
 }
 
 void WebSocketPage::updateButtonStates(bool connected) {

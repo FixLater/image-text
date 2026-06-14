@@ -58,6 +58,30 @@ void MainWindow::initPages() {
 
     connect(m_dashboardPage, &DashboardPage::moduleClicked, this, &MainWindow::onModuleClicked);
     connect(m_websocketPage, &WebSocketPage::tabsChanged, this, &MainWindow::rebuildTabBar);
+    connect(m_websocketPage, &WebSocketPage::statusChanged, this, [this](bool connected) {
+        m_dashboardPage->updateCardStatus("websocket", connected);
+    });
+    connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](const QString &html) {
+        m_dashboardPage->appendCardLog("websocket", html);
+    });
+    connect(m_dashboardPage, &DashboardPage::cardPrevClicked, this, [this](const QString &name) {
+        if (name == "websocket" && m_websocketPage) {
+            int idx = m_websocketPage->activeTabIndex() - 1;
+            if (idx >= 0) {
+                m_websocketPage->switchTab(idx);
+                updateDashboardTabInfo();
+            }
+        }
+    });
+    connect(m_dashboardPage, &DashboardPage::cardNextClicked, this, [this](const QString &name) {
+        if (name == "websocket" && m_websocketPage) {
+            int idx = m_websocketPage->activeTabIndex() + 1;
+            if (idx < m_websocketPage->tabCount()) {
+                m_websocketPage->switchTab(idx);
+                updateDashboardTabInfo();
+            }
+        }
+    });
 
     ui->backBtn->hide();
     ui->homeBtn->hide();
@@ -112,6 +136,14 @@ void MainWindow::updateBreadcrumb(const QString &path) {
 
 void MainWindow::showTabBar(bool show) {
     ui->tabAdd->setVisible(show);
+}
+
+void MainWindow::updateDashboardTabInfo() {
+    if (!m_websocketPage) return;
+    int count = m_websocketPage->tabCount();
+    int active = m_websocketPage->activeTabIndex();
+    if (active < 0 && count > 0) active = 0;
+    m_dashboardPage->updateCardTabInfo("websocket", active, count);
 }
 
 void MainWindow::onTabAddClicked() {
@@ -242,6 +274,8 @@ void MainWindow::rebuildTabBar() {
         "  font-size: 14pt; font-weight: bold; padding: 0 8px; border-radius: 4px; }"
         "QPushButton:hover { color: #d1d5db; background-color: #1f2937; }"
     );
+
+    updateDashboardTabInfo();
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
