@@ -61,8 +61,8 @@ void MainWindow::initPages() {
     connect(m_websocketPage, &WebSocketPage::statusChanged, this, [this](bool connected) {
         m_dashboardPage->updateCardStatus("websocket", connected);
     });
-    connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](const QString &html) {
-        m_dashboardPage->appendCardLog("websocket", html);
+    connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](int tabIndex, const QString &html) {
+        m_dashboardPage->appendCardLog("websocket", tabIndex, html);
     });
     connect(m_dashboardPage, &DashboardPage::cardPrevClicked, this, [this](const QString &name) {
         if (name == "websocket" && m_websocketPage) {
@@ -82,6 +82,8 @@ void MainWindow::initPages() {
             }
         }
     });
+
+    m_websocketPage->connectToCurrentTab();
 
     ui->backBtn->hide();
     ui->homeBtn->hide();
@@ -144,6 +146,8 @@ void MainWindow::updateDashboardTabInfo() {
     int active = m_websocketPage->activeTabIndex();
     if (active < 0 && count > 0) active = 0;
     m_dashboardPage->updateCardTabInfo("websocket", active, count);
+    QString logHtml = m_websocketPage->tabLogHtml(active);
+    m_dashboardPage->setCardLogFromTab("websocket", logHtml);
 }
 
 void MainWindow::onTabAddClicked() {

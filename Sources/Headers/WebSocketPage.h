@@ -12,8 +12,9 @@ struct TabState {
     QString messageText;
     QtWebSocketClient *client = nullptr;
     QStandardItemModel *fileModel = nullptr;
-    QString logHtml;
+    QStringList logEntries;
     bool showFiles = false;
+    bool connecting = false;
 };
 
 namespace Ui {
@@ -64,7 +65,8 @@ private:
 
     void updateUIState();
 
-    void appendLog(const QString &message, const QString &type = "info");
+    void appendLog(const QString &message, const QString &type = "info", int tabIndex = -1);
+    int findTabIndexForClient(QObject *client) const;
     void updateButtonStates(bool connected);
     void addFiles(const QStringList &files);
     void applyApiFoxStyle();

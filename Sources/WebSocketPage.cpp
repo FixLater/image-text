@@ -37,7 +37,7 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
         connect(&clearAction, &QAction::triggered, this, [this]() {
             ui->log->clear();
             if (m_activeTabIndex >= 0) {
-                m_tabs[m_activeTabIndex].logHtml.clear();
+                m_tabs[m_activeTabIndex].logEntries.clear();
             }
         });
         menu.addAction(&clearAction);
@@ -95,7 +95,6 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
     ui->selectFile->hide();
 
     addTab("ws://127.0.0.1:8200/websocket");
-    connectToCurrentTab();
 }
 
 WebSocketPage::~WebSocketPage() {
@@ -146,7 +145,12 @@ void WebSocketPage::connectToCurrentTab() {
 
 QString WebSocketPage::tabLogHtml(int index) const {
     if (index < 0 || index >= m_tabs.size()) return {};
-    return m_tabs[index].logHtml;
+    QString html;
+    for (const auto &entry : m_tabs[index].logEntries) {
+        if (!html.isEmpty()) html += "<br>";
+        html += entry;
+    }
+    return html;
 }
 
 void WebSocketPage::switchTab(int index) {
@@ -157,7 +161,6 @@ void WebSocketPage::switchTab(int index) {
         oldTab.url = ui->location->text();
         oldTab.messageText = ui->message->toPlainText();
         oldTab.showFiles = ui->tableView->isVisible();
-        oldTab.logHtml = ui->log->toHtml();
     }
 
     m_activeTabIndex = index;
@@ -166,16 +169,17 @@ void WebSocketPage::switchTab(int index) {
     ui->location->setText(tab.url);
 
     ui->log->clear();
-    if (!tab.logHtml.isEmpty()) {
-        ui->log->setHtml(tab.logHtml);
+    for (const auto &entry : tab.logEntries) {
+        ui->log->append(entry);
     }
 
     ui->message->setText(tab.messageText);
 
     bool hasClient = tab.client && tab.client->isConnected();
-    ui->connectButton->setEnabled(!hasClient);
+    bool isConnecting = tab.connecting;
+    ui->connectButton->setEnabled(!hasClient && !isConnecting);
     ui->disconnectButton->setEnabled(hasClient);
-    ui->location->setEnabled(!hasClient);
+    ui->location->setEnabled(!hasClient && !isConnecting);
     ui->sendButton->setEnabled(hasClient);
 
     bool connected = hasClient;
@@ -405,6 +409,8 @@ void WebSocketPage::on_connectButton_clicked() {
     connect(tab.client, &QtWebSocketClient::reconnecting, this, &WebSocketPage::onReconnecting);
 
     appendLog("连接中: " + url, "info");
+    tab.connecting = true;
+    ui->connectButton->setEnabled(false);
     tab.client->connectToServer();
 }
 
@@ -417,33 +423,54 @@ void WebSocketPage::on_disconnectButton_clicked() {
 }
 
 void WebSocketPage::onConnected() {
-    appendLog("已连接到服务器", "success");
-    updateButtonStates(true);
-    ui->statusLabel->setProperty("connected", true);
-    updateStatusStyle();
+    int tabIndex = findTabIndexForClient(sender());
+    appendLog("已连接到服务器", "success", tabIndex);
+    if (tabIndex >= 0 && tabIndex < m_tabs.size()) {
+        m_tabs[tabIndex].connecting = false;
+    }
+    if (tabIndex == m_activeTabIndex) {
+        updateButtonStates(true);
+        ui->statusLabel->setProperty("connected", true);
+        updateStatusStyle();
+    }
     emit tabsChanged();
     emit statusChanged(true);
 }
 
 void WebSocketPage::onDisconnected() {
-    appendLog("已断开连接", "warning");
-    updateButtonStates(false);
-    ui->statusLabel->setProperty("connected", false);
-    updateStatusStyle();
+    int tabIndex = findTabIndexForClient(sender());
+    appendLog("已断开连接", "warning", tabIndex);
+    if (tabIndex >= 0 && tabIndex < m_tabs.size()) {
+        m_tabs[tabIndex].connecting = false;
+    }
+    if (tabIndex == m_activeTabIndex) {
+        updateButtonStates(false);
+        ui->statusLabel->setProperty("connected", false);
+        updateStatusStyle();
+    }
     emit tabsChanged();
     emit statusChanged(false);
 }
 
 void WebSocketPage::onMessageReceived(const QString &message) {
-    appendLog("← " + message, "info");
+    int tabIndex = findTabIndexForClient(sender());
+    appendLog("← " + message, "info", tabIndex);
 }
 
 void WebSocketPage::onErrorOccurred(const QString &error) {
-    appendLog("✗ " + error, "error");
+    int tabIndex = findTabIndexForClient(sender());
+    appendLog("✗ " + error, "error", tabIndex);
+    if (tabIndex >= 0 && tabIndex < m_tabs.size()) {
+        m_tabs[tabIndex].connecting = false;
+    }
+    if (tabIndex == m_activeTabIndex) {
+        ui->connectButton->setEnabled(true);
+    }
 }
 
 void WebSocketPage::onReconnecting(int attempt, int maxAttempts) {
-    appendLog(QString("⟳ 重连中... (%1/%2)").arg(attempt).arg(maxAttempts), "warning");
+    int tabIndex = findTabIndexForClient(sender());
+    appendLog(QString("⟳ 重连中... (%1/%2)").arg(attempt).arg(maxAttempts), "warning", tabIndex);
 }
 
 void WebSocketPage::on_sendButton_clicked() {
@@ -546,8 +573,16 @@ void WebSocketPage::onActionReplace() {
     m_contextRow = -1;
 }
 
-void WebSocketPage::appendLog(const QString &message, const QString &type) {
-    if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size()) return;
+int WebSocketPage::findTabIndexForClient(QObject *client) const {
+    for (int i = 0; i < m_tabs.size(); i++) {
+        if (m_tabs[i].client == client) return i;
+    }
+    return -1;
+}
+
+void WebSocketPage::appendLog(const QString &message, const QString &type, int tabIndex) {
+    if (tabIndex < 0) tabIndex = m_activeTabIndex;
+    if (tabIndex < 0 || tabIndex >= m_tabs.size()) return;
 
     QString ts = QDateTime::currentDateTime().toString("hh:mm:ss");
 
@@ -567,14 +602,16 @@ void WebSocketPage::appendLog(const QString &message, const QString &type) {
     QString html = QString("<span class='timestamp'>%1</span> <span class='%2'>%3</span>")
             .arg(ts, type, escaped);
 
-    ui->log->append(html);
-    m_tabs[m_activeTabIndex].logHtml = ui->log->toHtml();
+    m_tabs[tabIndex].logEntries.append(html);
 
-    QTextCursor cursor = ui->log->textCursor();
-    cursor.movePosition(QTextCursor::End);
-    ui->log->setTextCursor(cursor);
+    if (tabIndex == m_activeTabIndex) {
+        ui->log->append(html);
+        QTextCursor cursor = ui->log->textCursor();
+        cursor.movePosition(QTextCursor::End);
+        ui->log->setTextCursor(cursor);
+    }
 
-    emit logAppended(m_activeTabIndex, html);
+    emit logAppended(tabIndex, html);
 }
 
 void WebSocketPage::updateButtonStates(bool connected) {

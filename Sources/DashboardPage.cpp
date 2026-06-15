@@ -3,6 +3,7 @@
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
 #include <QMouseEvent>
+#include <QTextOption>
 
 DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     auto *mainLayout = new QVBoxLayout(this);
@@ -43,6 +44,9 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
         if (mouseEvent->button() == Qt::LeftButton) {
             auto *cardWidget = qobject_cast<QWidget *>(obj);
             if (cardWidget && cardWidget->objectName() == "moduleCard") {
+                auto *clickedChild = cardWidget->childAt(mouseEvent->pos());
+                if (clickedChild && clickedChild->objectName() == "prevBtn") return false;
+                if (clickedChild && clickedChild->objectName() == "nextBtn") return false;
                 for (auto it = m_cardWidgets.constBegin(); it != m_cardWidgets.constEnd(); ++it) {
                     if (it.value().logPreview && it.value().logPreview->parentWidget() == cardWidget) {
                         emit moduleClicked(it.key());
@@ -71,8 +75,11 @@ void DashboardPage::updateCardStatus(const QString &moduleName, bool connected) 
     }
 }
 
-void DashboardPage::appendCardLog(const QString &moduleName, const QString &html) {
+void DashboardPage::appendCardLog(const QString &moduleName, int tabIndex, const QString &html) {
     if (!m_cardWidgets.contains(moduleName)) return;
+    if (!m_cardTabIndices.contains(moduleName)) return;
+    if (m_cardTabIndices[moduleName] != tabIndex) return;
+
     auto &widgets = m_cardWidgets[moduleName];
     widgets.logPreview->append(html);
 
@@ -88,9 +95,23 @@ void DashboardPage::appendCardLog(const QString &moduleName, const QString &html
     }
 }
 
+void DashboardPage::setCardLogFromTab(const QString &moduleName, const QString &html) {
+    if (!m_cardWidgets.contains(moduleName)) return;
+    auto &widgets = m_cardWidgets[moduleName];
+    widgets.logPreview->clear();
+    if (!html.isEmpty()) {
+        widgets.logPreview->setHtml(html);
+    }
+    QTextCursor cursor = widgets.logPreview->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    widgets.logPreview->setTextCursor(cursor);
+}
+
 void DashboardPage::updateCardTabInfo(const QString &moduleName, int current, int total) {
     if (!m_cardWidgets.contains(moduleName)) return;
     auto &widgets = m_cardWidgets[moduleName];
+
+    m_cardTabIndices[moduleName] = current;
 
     bool hasMultiple = total > 1;
     widgets.prevBtn->setVisible(hasMultiple);
@@ -109,7 +130,7 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     cardWidget->setCursor(Qt::PointingHandCursor);
 
     auto *mainLayout = new QVBoxLayout(cardWidget);
-    mainLayout->setContentsMargins(28, 10, 28, 10);
+    mainLayout->setContentsMargins(16, 10, 16, 10);
     mainLayout->setSpacing(0);
 
     auto *topRow = new QHBoxLayout();
@@ -146,6 +167,7 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     logPreview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     logPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     logPreview->setOpenExternalLinks(false);
+    logPreview->setWordWrapMode(QTextOption::WrapAnywhere);
     logPreview->setStyleSheet(
         "QTextBrowser {"
         "  background-color: #1f2023; color: #94a3b8;"
@@ -164,7 +186,8 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     mainLayout->addWidget(logPreview);
 
     auto *prevBtn = new QPushButton("◀", cardWidget);
-    prevBtn->setFixedSize(24, 40);
+    prevBtn->setObjectName("prevBtn");
+    prevBtn->setFixedSize(12, 40);
     prevBtn->move(2, 70);
     prevBtn->setCursor(Qt::PointingHandCursor);
     prevBtn->setVisible(false);
@@ -175,8 +198,9 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     );
 
     auto *nextBtn = new QPushButton("▶", cardWidget);
-    nextBtn->setFixedSize(24, 40);
-    nextBtn->move(254, 70);
+    nextBtn->setObjectName("nextBtn");
+    nextBtn->setFixedSize(12, 40);
+    nextBtn->move(266, 70);
     nextBtn->setCursor(Qt::PointingHandCursor);
     nextBtn->setVisible(false);
     nextBtn->setStyleSheet(
@@ -186,10 +210,11 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     );
 
     m_cardWidgets[card.name] = {statusLabel, logPreview, prevBtn, nextBtn, tabLabel};
+    m_cardTabIndices[card.name] = 0;
 
     cardWidget->setStyleSheet(
         "#moduleCard {"
-        "  background-color: #26282c; border: 1px solid #36383d; border-radius: 10px;"
+        "  background-color: #26282c; border: 1px solid #36383d; border-radius: 8px;"
         "}"
         "#moduleCard:hover {"
         "  background-color: #2a2c30; border-color: #0ea5e9;"
