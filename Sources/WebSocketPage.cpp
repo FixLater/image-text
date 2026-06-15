@@ -1,6 +1,7 @@
 #include "WebSocketPage.h"
 #include "ui_WebSocketPage.h"
 #include "QtWebSocketClient.h"
+#include "ChatLogWidget.h"
 #include <QDragEnterEvent>
 #include <QMimeData>
 #include <QFileDialog>
@@ -23,13 +24,21 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
     ui->setupUi(this);
     applyApiFoxStyle();
 
+    m_chatLog = new ChatLogWidget(this);
+
+    ui->rightLayout->removeWidget(ui->log);
+    ui->log->hide();
+    ui->rightLayout->addWidget(m_chatLog);
+
+    ui->mainSplitter->setSizes({500, 500});
+
     ui->statusLabel->setProperty("connected", false);
     updateStatusStyle();
 
     ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->tableView, &QTableView::customContextMenuRequested, this, &WebSocketPage::onContextMenuRequested);
-    ui->log->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(ui->log, &QTextBrowser::customContextMenuRequested, this, [this](QPoint pos) {
+    m_chatLog->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_chatLog->viewport(), &QWidget::customContextMenuRequested, this, [this](QPoint pos) {
         QMenu menu(this);
         menu.setStyleSheet(
             "QMenu { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px; }"
@@ -38,13 +47,14 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
         );
         QAction clearAction("清空日志", this);
         connect(&clearAction, &QAction::triggered, this, [this]() {
-            ui->log->clear();
+            m_chatLog->clearMessages();
             if (m_activeTabIndex >= 0) {
                 m_tabs[m_activeTabIndex].logEntries.clear();
+                m_tabs[m_activeTabIndex].logMessages.clear();
             }
         });
         menu.addAction(&clearAction);
-        menu.exec(ui->log->viewport()->mapToGlobal(pos));
+        menu.exec(m_chatLog->viewport()->mapToGlobal(pos));
     });
     ui->message->setWordWrapMode(QTextOption::WrapAnywhere);
     ui->message->setAcceptDrops(false);
@@ -150,9 +160,13 @@ void WebSocketPage::connectToCurrentTab() {
 QString WebSocketPage::tabLogHtml(int index) const {
     if (index < 0 || index >= m_tabs.size()) return {};
     QString html;
-    for (const auto &entry : m_tabs[index].logEntries) {
-        if (!html.isEmpty()) html += "<br>";
-        html += entry;
+    for (const auto &msg : m_tabs[index].logMessages) {
+        QString escaped = msg.text;
+        escaped.replace("&", "&amp;");
+        escaped.replace("<", "&lt;");
+        escaped.replace(">", "&gt;");
+        QString cls = (msg.type == "sent") ? "sent" : (msg.type == "info" ? "info" : "sys-info");
+        html += QString("<span class='%1'>%2</span><br>").arg(cls, escaped);
     }
     return html;
 }
@@ -172,9 +186,9 @@ void WebSocketPage::switchTab(int index) {
 
     ui->location->setText(tab.url);
 
-    ui->log->clear();
-    for (const auto &entry : tab.logEntries) {
-        ui->log->append(entry);
+    m_chatLog->clearMessages();
+    for (const auto &msg : tab.logMessages) {
+        m_chatLog->appendMessage(msg.text, msg.type);
     }
 
     ui->message->setText(tab.messageText);
@@ -353,26 +367,6 @@ void WebSocketPage::applyApiFoxStyle() {
         "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
         "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
     );
-
-    ui->log->setStyleSheet(
-        "QTextBrowser {"
-        "  background-color: #1f2023; color: #cbd5e1;"
-        "  border: 1px solid #36383d; border-radius: 6px;"
-        "  font-family: 'Cascadia Code', 'Consolas', monospace;"
-        "  font-size: 9pt; padding: 8px 12px;"
-        "}"
-        "QTextBrowser:focus { border: 1px solid #0ea5e9; }"
-    );
-
-    ui->log->document()->setDefaultStyleSheet(
-        ".timestamp { color: #334155; }"
-        ".info { color: #000000; }"
-        ".error { color: #f87171; }"
-        ".success { color: #34d399; }"
-        ".warning { color: #fbbf24; }"
-        ".link { color: #38bdf8; text-decoration: underline; }"
-        ".sent { color: #16a34a; }"
-    );
 }
 
 void WebSocketPage::updateStatusStyle() {
@@ -420,8 +414,6 @@ void WebSocketPage::on_connectButton_clicked() {
     connect(tab.client, &QtWebSocketClient::messageReceived, this, &WebSocketPage::onMessageReceived);
     connect(tab.client, &QtWebSocketClient::errorOccurred, this, &WebSocketPage::onErrorOccurred);
     connect(tab.client, &QtWebSocketClient::reconnecting, this, &WebSocketPage::onReconnecting);
-
-    appendLog("连接中: " + url, "info");
     tab.connecting = true;
     ui->connectButton->setEnabled(false);
     tab.client->connectToServer();
@@ -437,7 +429,6 @@ void WebSocketPage::on_disconnectButton_clicked() {
 
 void WebSocketPage::onConnected() {
     int tabIndex = findTabIndexForClient(sender());
-    appendLog("已连接到服务器", "success", tabIndex);
     if (tabIndex >= 0 && tabIndex < m_tabs.size()) {
         m_tabs[tabIndex].connecting = false;
     }
@@ -452,7 +443,7 @@ void WebSocketPage::onConnected() {
 
 void WebSocketPage::onDisconnected() {
     int tabIndex = findTabIndexForClient(sender());
-    appendLog("已断开连接", "warning", tabIndex);
+    appendLog("已断开连接", "system", tabIndex);
     if (tabIndex >= 0 && tabIndex < m_tabs.size()) {
         m_tabs[tabIndex].connecting = false;
     }
@@ -474,21 +465,21 @@ void WebSocketPage::onMessageReceived(const QString &message) {
         QJsonObject obj = doc.object();
         QString type = obj["type"].toString();
         if (type == "message" && obj.contains("content")) {
-            appendLog("← " + obj["content"].toString(), "info", tabIndex);
+            appendLog(obj["content"].toString(), "info", tabIndex);
             return;
         }
         if (obj.contains("msg")) {
-            appendLog("← " + obj["msg"].toString(), "info", tabIndex);
+            appendLog(obj["msg"].toString(), "system", tabIndex);
             return;
         }
     }
 
-    appendLog("← " + message, "info", tabIndex);
+    appendLog(message, "system", tabIndex);
 }
 
 void WebSocketPage::onErrorOccurred(const QString &error) {
     int tabIndex = findTabIndexForClient(sender());
-    appendLog("✗ " + error, "error", tabIndex);
+    appendLog("✗ " + error, "system", tabIndex);
     if (tabIndex >= 0 && tabIndex < m_tabs.size()) {
         m_tabs[tabIndex].connecting = false;
     }
@@ -499,7 +490,7 @@ void WebSocketPage::onErrorOccurred(const QString &error) {
 
 void WebSocketPage::onReconnecting(int attempt, int maxAttempts) {
     int tabIndex = findTabIndexForClient(sender());
-    appendLog(QString("⟳ 重连中... (%1/%2)").arg(attempt).arg(maxAttempts), "warning", tabIndex);
+    appendLog(QString("⟳ 重连中... (%1/%2)").arg(attempt).arg(maxAttempts), "system", tabIndex);
 }
 
 void WebSocketPage::on_sendButton_clicked() {
@@ -507,7 +498,7 @@ void WebSocketPage::on_sendButton_clicked() {
     auto &tab = m_tabs[m_activeTabIndex];
 
     if (!tab.client || !tab.client->isConnected()) {
-        appendLog("未连接，无法发送", "error");
+        appendLog("未连接，无法发送", "system");
         return;
     }
 
@@ -516,14 +507,14 @@ void WebSocketPage::on_sendButton_clicked() {
             auto *item = tab.fileModel->item(i, 0);
             if (item) {
                 tab.client->sendImage(item->text());
-                appendLog("→ 发送图片: " + QFileInfo(item->text()).fileName(), "success");
+                appendLog("发送图片: " + QFileInfo(item->text()).fileName(), "sent");
             }
         }
     } else {
         auto message = ui->message->toPlainText().trimmed();
         if (message.isEmpty()) return;
         tab.client->sendMessage(message);
-        appendLog("→ " + message, "sent");
+        appendLog(message, "sent");
         ui->message->clear();
     }
 }
@@ -613,7 +604,10 @@ void WebSocketPage::appendLog(const QString &message, const QString &type, int t
     if (tabIndex < 0) tabIndex = m_activeTabIndex;
     if (tabIndex < 0 || tabIndex >= m_tabs.size()) return;
 
-    QString ts = QDateTime::currentDateTime().toString("hh:mm:ss");
+    ChatMessage msg;
+    msg.text = message;
+    msg.type = type;
+    m_tabs[tabIndex].logMessages.append(msg);
 
     QString escaped = message;
     escaped.replace("&", "&amp;");
@@ -628,16 +622,59 @@ void WebSocketPage::appendLog(const QString &message, const QString &type, int t
         escaped.replace(url, QString("<a href=\"%1\" class=\"link\">%1</a>").arg(url));
     }
 
-    QString html = QString("<span class='timestamp'>%1</span> <span class='%2'>%3</span>")
-            .arg(ts, type, escaped);
+    QString html;
+
+    if (type == "sent") {
+        html = QString(
+            "<table width='100%' cellpadding='0' cellspacing='0' border='0'>"
+            "<tr>"
+            "<td width='*' align='right' valign='top' style='padding: 3px 8px 3px 50px;'>"
+            "<table cellpadding='0' cellspacing='0' border='0'>"
+            "<tr><td style='background-color: #3b82f6; color: #ffffff; padding: 8px 12px; "
+            "font-size: 9pt; font-family: Microsoft YaHei UI, Segoe UI, sans-serif; "
+            "line-height: 1.45;'>%1</td></tr>"
+            "</table></td>"
+            "<td width='38' valign='top' style='padding: 3px 0;'>"
+            "<table cellpadding='0' cellspacing='0' border='0'>"
+            "<tr><td width='32' height='32' style='background-color: #3b82f6; color: #ffffff; "
+            "text-align: center; font-size: 12pt; font-weight: bold; "
+            "font-family: Microsoft YaHei UI, Segoe UI, sans-serif;'>S</td></tr>"
+            "</table></td>"
+            "</tr></table>"
+        ).arg(escaped);
+    } else if (type == "info") {
+        html = QString(
+            "<table width='100%' cellpadding='0' cellspacing='0' border='0'>"
+            "<tr>"
+            "<td width='38' valign='top' style='padding: 3px 0;'>"
+            "<table cellpadding='0' cellspacing='0' border='0'>"
+            "<tr><td width='32' height='32' style='background-color: #10b981; color: #ffffff; "
+            "text-align: center; font-size: 12pt; font-weight: bold; "
+            "font-family: Microsoft YaHei UI, Segoe UI, sans-serif;'>R</td></tr>"
+            "</table></td>"
+            "<td width='*' valign='top' style='padding: 3px 8px 3px 8px;'>"
+            "<table cellpadding='0' cellspacing='0' border='0'>"
+            "<tr><td style='background-color: #2a2d32; color: #e2e8f0; padding: 8px 12px; "
+            "font-size: 9pt; font-family: Microsoft YaHei UI, Segoe UI, sans-serif; "
+            "line-height: 1.45;'>%2</td></tr>"
+            "</table></td>"
+            "</tr></table>"
+        ).arg(escaped);
+    } else {
+        html = QString(
+            "<table width='100%' cellpadding='0' cellspacing='0' border='0'>"
+            "<tr><td align='center' style='padding: 5px 0;'>"
+            "<table cellpadding='0' cellspacing='0' border='0'>"
+            "<tr><td style='background-color: #252830; color: #6b7280; padding: 3px 14px; "
+            "font-size: 7pt; font-family: Microsoft YaHei UI, Segoe UI, sans-serif;'>%1</td></tr>"
+            "</table></td></tr></table>"
+        ).arg(escaped);
+    }
 
     m_tabs[tabIndex].logEntries.append(html);
 
     if (tabIndex == m_activeTabIndex) {
-        ui->log->append(html);
-        QTextCursor cursor = ui->log->textCursor();
-        cursor.movePosition(QTextCursor::End);
-        ui->log->setTextCursor(cursor);
+        m_chatLog->appendMessage(message, type);
     }
 
     emit logAppended(tabIndex, html);

@@ -188,9 +188,13 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
         "QTextBrowser {"
         "  background-color: transparent; color: #94a3b8;"
         "  border: 1px solid #36383d; border-radius: 4px;"
-        "  font-family: 'Cascadia Code', 'Consolas', monospace;"
-        "  font-size: 7pt; padding: 6px;"
+        "  font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif;"
+        "  font-size: 7pt; padding: 4px;"
         "}"
+    );
+    logPreview->document()->setDefaultStyleSheet(
+        ".ts-divider { color: #555; font-size: 6pt; }"
+        ".link { color: #38bdf8; text-decoration: underline; }"
     );
     logPreview->document()->setDefaultStyleSheet(
         ".timestamp { color: #334155; }"

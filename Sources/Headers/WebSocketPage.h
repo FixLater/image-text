@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QStandardItemModel>
 #include <QVector>
+#include "ChatLogWidget.h"
 
 class QtWebSocketClient;
 
@@ -13,6 +14,7 @@ struct TabState {
     QtWebSocketClient *client = nullptr;
     QStandardItemModel *fileModel = nullptr;
     QStringList logEntries;
+    QVector<ChatMessage> logMessages;
     bool showFiles = false;
     bool connecting = false;
 };
@@ -60,6 +62,7 @@ private slots:
 private:
     Ui::WebSocketPage *ui;
     int m_contextRow;
+    ChatLogWidget *m_chatLog = nullptr;
 
     QVector<TabState> m_tabs;
     int m_activeTabIndex = -1;
