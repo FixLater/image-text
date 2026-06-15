@@ -57,6 +57,13 @@ void QtWebSocketClient::disconnectFromServer() {
     m_pingTimer->stop();
     m_reconnectTimer->stop();
     m_manualDisconnect = true;
+
+    if (isConnected()) {
+        QJsonObject leaveMsg;
+        leaveMsg["type"] = "leave";
+        sendRawText(QJsonDocument(leaveMsg).toJson(QJsonDocument::Compact));
+    }
+
     m_handshakeComplete = false;
     if (m_socket->state() != QAbstractSocket::UnconnectedState) {
         m_socket->disconnectFromHost();
@@ -111,6 +118,11 @@ void QtWebSocketClient::onReadyRead() {
             m_reconnectTimer->stop();
             startPingTimer();
             emit connected();
+
+            QJsonObject joinMsg;
+            joinMsg["type"] = "join";
+            joinMsg["roomId"] = "log";
+            sendRawText(QJsonDocument(joinMsg).toJson(QJsonDocument::Compact));
         } else {
             QString reason = QString::fromUtf8(response.left(200));
             emit errorOccurred("Handshake failed: " + reason);

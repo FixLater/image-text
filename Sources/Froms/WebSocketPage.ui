@@ -109,7 +109,7 @@
            <item>
             <layout class="QHBoxLayout" name="sendRowLayout">
              <property name="spacing"><number>8</number></property>
-           <property name="topMargin"><number>0</number></property>
+            <property name="topMargin"><number>8</number></property>
              <item>
               <widget class="QPushButton" name="selectFile">
                <property name="text"><string>+ 添加文件</string></property>

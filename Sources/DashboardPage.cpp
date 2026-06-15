@@ -194,10 +194,11 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     );
     logPreview->document()->setDefaultStyleSheet(
         ".timestamp { color: #334155; }"
-        ".info { color: #94a3b8; }"
+        ".info { color: #000000; }"
         ".error { color: #f87171; }"
         ".success { color: #34d399; }"
         ".warning { color: #fbbf24; }"
+        ".sent { color: #16a34a; }"
     );
     mainLayout->addWidget(logPreview);
 

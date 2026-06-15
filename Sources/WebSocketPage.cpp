@@ -12,6 +12,9 @@
 #include <QTextCursor>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QRandomGenerator>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "TableItemDelegate.h"
 
 WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
@@ -45,6 +48,7 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
     });
     ui->message->setWordWrapMode(QTextOption::WrapAnywhere);
     ui->message->setAcceptDrops(false);
+    ui->message->installEventFilter(this);
     this->setAcceptDrops(true);
 
     connect(ui->message, &QTextEdit::textChanged, this, &WebSocketPage::updateSendButtonState);
@@ -362,11 +366,12 @@ void WebSocketPage::applyApiFoxStyle() {
 
     ui->log->document()->setDefaultStyleSheet(
         ".timestamp { color: #334155; }"
-        ".info { color: #cbd5e1; }"
+        ".info { color: #000000; }"
         ".error { color: #f87171; }"
         ".success { color: #34d399; }"
         ".warning { color: #fbbf24; }"
         ".link { color: #38bdf8; text-decoration: underline; }"
+        ".sent { color: #16a34a; }"
     );
 }
 
@@ -395,7 +400,15 @@ void WebSocketPage::on_connectButton_clicked() {
     tab.url = url;
 
     WebSocketConfig config;
-    config.jwtToken = "puppeteer";
+
+    const QString chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    QString token;
+    token.reserve(7);
+    for (int i = 0; i < 7; i++) {
+        token.append(chars.at(QRandomGenerator::global()->bounded(chars.length())));
+    }
+    config.jwtToken = token;
+
     config.pingIntervalMs = 30000;
     config.reconnectIntervalMs = 5000;
     config.maxReconnectAttempts = 500;
@@ -454,6 +467,22 @@ void WebSocketPage::onDisconnected() {
 
 void WebSocketPage::onMessageReceived(const QString &message) {
     int tabIndex = findTabIndexForClient(sender());
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8(), &parseError);
+    if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+        QJsonObject obj = doc.object();
+        QString type = obj["type"].toString();
+        if (type == "message" && obj.contains("content")) {
+            appendLog("← " + obj["content"].toString(), "info", tabIndex);
+            return;
+        }
+        if (obj.contains("msg")) {
+            appendLog("← " + obj["msg"].toString(), "info", tabIndex);
+            return;
+        }
+    }
+
     appendLog("← " + message, "info", tabIndex);
 }
 
@@ -494,7 +523,7 @@ void WebSocketPage::on_sendButton_clicked() {
         auto message = ui->message->toPlainText().trimmed();
         if (message.isEmpty()) return;
         tab.client->sendMessage(message);
-        appendLog("→ " + message, "info");
+        appendLog("→ " + message, "sent");
         ui->message->clear();
     }
 }
@@ -646,4 +675,16 @@ void WebSocketPage::dropEvent(QDropEvent *event) {
         files.append(url.toLocalFile());
     }
     addFiles(files);
+}
+
+bool WebSocketPage::eventFilter(QObject *obj, QEvent *event) {
+    if (obj == ui->message && event->type() == QEvent::KeyPress) {
+        auto *keyEvent = static_cast<QKeyEvent *>(event);
+        if ((keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter)
+            && !(keyEvent->modifiers() & Qt::ControlModifier)) {
+            on_sendButton_clicked();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(obj, event);
 }
