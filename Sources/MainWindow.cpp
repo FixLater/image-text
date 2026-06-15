@@ -6,6 +6,7 @@
 #include <QHBoxLayout>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QToolTip>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <windowsx.h>
@@ -251,7 +252,14 @@ void MainWindow::rebuildTabBar() {
                 "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
             );
             QAction closeCurrent("关闭当前标签", this);
-            connect(&closeCurrent, &QAction::triggered, this, [this, i]() { onTabCloseClicked(i); });
+            connect(&closeCurrent, &QAction::triggered, this, [this, i, tabWidget]() {
+                if (m_websocketPage && m_websocketPage->tabCount() <= 1) {
+                    QToolTip::showText(tabWidget->mapToGlobal(QPoint(tabWidget->width() / 2, 0)),
+                                       "最少保留一个标签", tabWidget);
+                    return;
+                }
+                onTabCloseClicked(i);
+            });
             menu.addAction(&closeCurrent);
 
             if (m_websocketPage->tabCount() > 1) {
@@ -267,7 +275,14 @@ void MainWindow::rebuildTabBar() {
             menu.exec(tabWidget->mapToGlobal(pos));
         });
 
-        connect(closeBtn, &QPushButton::clicked, this, [this, i]() { onTabCloseClicked(i); });
+        connect(closeBtn, &QPushButton::clicked, this, [this, i, closeBtn]() {
+            if (m_websocketPage && m_websocketPage->tabCount() <= 1) {
+                QToolTip::showText(closeBtn->mapToGlobal(QPoint(closeBtn->width() / 2, 0)),
+                                   "最少保留一个标签", closeBtn);
+                return;
+            }
+            onTabCloseClicked(i);
+        });
         tabWidget->installEventFilter(this);
 
         layout->insertWidget(tabAddIndex + i, tabWidget);

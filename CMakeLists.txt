@@ -17,6 +17,7 @@ set(SOURCES
     main.cpp
     Sources/MainWindow.cpp
     Sources/DashboardPage.cpp
+    Sources/StarBackground.cpp
     Sources/WebSocketPage.cpp
     Sources/QtWebSocketClient.cpp
     Sources/TableItemDelegate.cpp
@@ -25,6 +26,7 @@ set(SOURCES
 set(HEADERS
     Sources/Headers/MainWindow.h
     Sources/Headers/DashboardPage.h
+    Sources/Headers/StarBackground.h
     Sources/Headers/WebSocketPage.h
     Sources/Headers/QtWebSocketClient.h
     Sources/Headers/TableItemDelegate.h

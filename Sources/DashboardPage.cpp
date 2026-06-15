@@ -1,4 +1,5 @@
 #include "DashboardPage.h"
+#include "StarBackground.h"
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
@@ -6,6 +7,9 @@
 #include <QTextOption>
 
 DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
+    m_starBg = new StarBackground(this);
+    m_starBg->lower();
+
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(32, 24, 32, 24);
     mainLayout->setSpacing(0);
@@ -38,6 +42,13 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     mainLayout->addStretch(1);
 }
 
+void DashboardPage::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    if (m_starBg) {
+        m_starBg->resize(size());
+    }
+}
+
 bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
     if (event->type() == QEvent::MouseButtonPress) {
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
@@ -47,6 +58,10 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
                 auto *clickedChild = cardWidget->childAt(mouseEvent->pos());
                 if (clickedChild && clickedChild->objectName() == "prevBtn") return false;
                 if (clickedChild && clickedChild->objectName() == "nextBtn") return false;
+
+                int clickY = mouseEvent->pos().y();
+                if (clickY > 36) return false;
+
                 for (auto it = m_cardWidgets.constBegin(); it != m_cardWidgets.constEnd(); ++it) {
                     if (it.value().logPreview && it.value().logPreview->parentWidget() == cardWidget) {
                         emit moduleClicked(it.key());
@@ -164,13 +179,14 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
 
     auto *logPreview = new QTextBrowser();
     logPreview->setReadOnly(true);
+    logPreview->setContextMenuPolicy(Qt::NoContextMenu);
     logPreview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     logPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     logPreview->setOpenExternalLinks(false);
     logPreview->setWordWrapMode(QTextOption::WrapAnywhere);
     logPreview->setStyleSheet(
         "QTextBrowser {"
-        "  background-color: #1f2023; color: #94a3b8;"
+        "  background-color: transparent; color: #94a3b8;"
         "  border: 1px solid #36383d; border-radius: 4px;"
         "  font-family: 'Cascadia Code', 'Consolas', monospace;"
         "  font-size: 7pt; padding: 6px;"
@@ -214,10 +230,10 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
 
     cardWidget->setStyleSheet(
         "#moduleCard {"
-        "  background-color: #26282c; border: 1px solid #36383d; border-radius: 8px;"
+        "  background-color: transparent; border: 1px solid #36383d; border-radius: 8px;"
         "}"
         "#moduleCard:hover {"
-        "  background-color: #2a2c30; border-color: #0ea5e9;"
+        "  background-color: rgba(42, 44, 48, 0.5); border-color: #0ea5e9;"
         "}"
     );
 
