@@ -1,5 +1,4 @@
 #include "DashboardPage.h"
-#include "StarBackground.h"
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
@@ -7,9 +6,6 @@
 #include <QTextOption>
 
 DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
-    m_starBg = new StarBackground(this);
-    m_starBg->lower();
-
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(32, 24, 32, 24);
     mainLayout->setSpacing(0);
@@ -40,13 +36,6 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
 
     mainLayout->addLayout(m_gridLayout);
     mainLayout->addStretch(1);
-}
-
-void DashboardPage::resizeEvent(QResizeEvent *event) {
-    QWidget::resizeEvent(event);
-    if (m_starBg) {
-        m_starBg->resize(size());
-    }
 }
 
 bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {

@@ -8,8 +8,6 @@
 #include <QLabel>
 #include <QTextBrowser>
 
-class StarBackground;
-
 struct ModuleCard {
     QString name;
     QString icon;
@@ -38,7 +36,6 @@ public:
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
 
 signals:
     void moduleClicked(const QString &moduleName);
@@ -50,7 +47,6 @@ private:
     QMap<QString, CardWidgets> m_cardWidgets;
     QMap<QString, int> m_cardTabIndices;
     QWidget *createCard(const ModuleCard &card);
-    StarBackground *m_starBg = nullptr;
 };
 
 #endif // DASHBOARDPAGE_H

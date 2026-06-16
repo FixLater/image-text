@@ -7,8 +7,10 @@
 #include <QLabel>
 #include <QVector>
 
+class SettingsDialog;
 class DashboardPage;
 class WebSocketPage;
+class StarBackground;
 
 namespace Ui {
     class MainWindow;
@@ -27,11 +29,13 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void navigateTo(const QString &moduleName);
     void navigateBack();
     void onModuleClicked(const QString &moduleName);
+    void onSettingsClicked();
 
 private:
     Ui::MainWindow *ui;
@@ -40,6 +44,7 @@ private:
 
     DashboardPage *m_dashboardPage;
     WebSocketPage *m_websocketPage;
+    StarBackground *m_starBg;
 
     void initPages();
     void updateBreadcrumb(const QString &path);

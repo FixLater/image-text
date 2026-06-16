@@ -2,6 +2,7 @@
 #include "ui_WebSocketPage.h"
 #include "QtWebSocketClient.h"
 #include "ChatLogWidget.h"
+#include "SettingsDialog.h"
 #include <QDragEnterEvent>
 #include <QMimeData>
 #include <QFileDialog>
@@ -108,7 +109,7 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
     ui->tableView->hide();
     ui->selectFile->hide();
 
-    addTab("ws://127.0.0.1:8200/websocket");
+    addTab(SettingsDialog::wsUrl());
 }
 
 WebSocketPage::~WebSocketPage() {
@@ -390,22 +391,23 @@ void WebSocketPage::on_connectButton_clicked() {
     }
 
     QString url = ui->location->text().trimmed();
-    if (url.isEmpty()) url = "ws://127.0.0.1:8200/websocket";
+    if (url.isEmpty()) url = SettingsDialog::wsUrl();
     tab.url = url;
 
     WebSocketConfig config;
 
     const QString chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    int tokenLen = SettingsDialog::wsJwtTokenLength();
     QString token;
-    token.reserve(7);
-    for (int i = 0; i < 7; i++) {
+    token.reserve(tokenLen);
+    for (int i = 0; i < tokenLen; i++) {
         token.append(chars.at(QRandomGenerator::global()->bounded(chars.length())));
     }
     config.jwtToken = token;
 
-    config.pingIntervalMs = 30000;
-    config.reconnectIntervalMs = 5000;
-    config.maxReconnectAttempts = 500;
+    config.pingIntervalMs = SettingsDialog::wsPingIntervalMs();
+    config.reconnectIntervalMs = SettingsDialog::wsReconnectIntervalMs();
+    config.maxReconnectAttempts = SettingsDialog::wsMaxReconnectAttempts();
 
     tab.client = new QtWebSocketClient(url, config, this);
 

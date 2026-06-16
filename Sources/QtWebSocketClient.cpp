@@ -1,4 +1,5 @@
 #include "QtWebSocketClient.h"
+#include "SettingsDialog.h"
 #include <QRandomGenerator>
 #include <QFile>
 #include <QFileInfo>
@@ -121,7 +122,7 @@ void QtWebSocketClient::onReadyRead() {
 
             QJsonObject joinMsg;
             joinMsg["type"] = "join";
-            joinMsg["roomId"] = "log";
+            joinMsg["roomId"] = SettingsDialog::wsRoomId();
             sendRawText(QJsonDocument(joinMsg).toJson(QJsonDocument::Compact));
         } else {
             QString reason = QString::fromUtf8(response.left(200));

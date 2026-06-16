@@ -22,6 +22,7 @@ set(SOURCES
     Sources/WebSocketPage.cpp
     Sources/QtWebSocketClient.cpp
     Sources/TableItemDelegate.cpp
+    Sources/SettingsDialog.cpp
 )
 
 set(HEADERS
@@ -32,6 +33,7 @@ set(HEADERS
     Sources/Headers/WebSocketPage.h
     Sources/Headers/QtWebSocketClient.h
     Sources/Headers/TableItemDelegate.h
+    Sources/Headers/SettingsDialog.h
 )
 
 set(UI_FILES

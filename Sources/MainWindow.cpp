@@ -2,6 +2,8 @@
 #include "ui_MainWindow.h"
 #include "DashboardPage.h"
 #include "WebSocketPage.h"
+#include "SettingsDialog.h"
+#include "StarBackground.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMenu>
@@ -18,6 +20,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->setupUi(this);
     setWindowFlags(Qt::FramelessWindowHint);
 
+    m_starBg = new StarBackground(ui->centralwidget);
+    m_starBg->lower();
+    m_starBg->resize(ui->centralwidget->size());
+
     connect(ui->minimizeBtn, &QPushButton::clicked, this, [this]() { showMinimized(); });
     connect(ui->maximizeBtn, &QPushButton::clicked, this, [this]() {
         if (isMaximized()) {
@@ -29,10 +35,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
         }
     });
     connect(ui->closeBtn, &QPushButton::clicked, this, &QWidget::close);
+    connect(ui->settingsBtn, &QPushButton::clicked, this, &MainWindow::onSettingsClicked);
 
     ui->minimizeBtn->setFixedSize(36, 36);
     ui->maximizeBtn->setFixedSize(36, 36);
     ui->closeBtn->setFixedSize(36, 36);
+    ui->settingsBtn->setFixedSize(36, 36);
     ui->tabAdd->setFixedSize(32, 24);
 
     connect(ui->backBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
@@ -45,8 +53,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->tabBarWidget->hide();
 }
 
+void MainWindow::onSettingsClicked() {
+    SettingsDialog dlg(this);
+    dlg.exec();
+}
+
 MainWindow::~MainWindow() {
     delete ui;
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    QMainWindow::resizeEvent(event);
+    if (m_starBg) {
+        m_starBg->resize(ui->centralwidget->size());
+    }
 }
 
 void MainWindow::initPages() {
@@ -364,7 +384,13 @@ void MainWindow::applyTitleBarStyle() {
         "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
         "  border-radius: 4px; padding: 0px 4px 8px 4px;"
         "}"
+
         "#minimizeBtn:hover, #maximizeBtn:hover { background-color: #36383d; color: #d1d5db; }"
+        "#settingsBtn {"
+        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
+        "  border-radius: 4px; padding: 2px 4px 6px 4px;"
+        "}"
+        "#settingsBtn:hover { background-color: #36383d; color: #0ea5e9; }"
         "#closeBtn {"
         "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
         "  border-radius: 4px; padding: 2px 4px 6px 4px;"

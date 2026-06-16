@@ -102,6 +102,13 @@
         </spacer>
        </item>
        <item>
+        <widget class="QPushButton" name="settingsBtn">
+         <property name="text">
+          <string>⚙</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="minimizeBtn">
          <property name="text">
           <string>─</string>
