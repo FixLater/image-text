@@ -39,6 +39,7 @@ public:
     bool isConnected() const;
     void connectToCurrentTab();
     QString tabLogHtml(int index) const;
+    void refreshUrlFromSettings();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -49,10 +50,10 @@ signals:
     void tabsChanged();
     void statusChanged(bool connected);
     void logAppended(int tabIndex, const QString &html);
+    void messageReceived(const QString &message);
 
 private slots:
     void on_connectButton_clicked();
-    void on_disconnectButton_clicked();
     void on_sendButton_clicked();
     void on_selectFile_clicked();
     void onContextMenuRequested(QPoint pos);

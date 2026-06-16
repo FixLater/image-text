@@ -10,9 +10,9 @@
     <height>620</height>
    </rect>
   </property>
-  <property name="windowTitle">
-   <string>Dashboard</string>
-  </property>
+   <property name="windowTitle">
+    <string>仪表盘</string>
+   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="mainVLayout">
     <property name="spacing">
@@ -82,11 +82,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="breadcrumbLabel">
-         <property name="text">
-          <string>Dashboard</string>
-         </property>
-        </widget>
+         <widget class="QLabel" name="breadcrumbLabel">
+          <property name="text">
+           <string>仪表盘</string>
+          </property>
+         </widget>
        </item>
        <item>
         <spacer name="titleSpacer">

@@ -6,6 +6,9 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QVector>
+#include <QSystemTrayIcon>
+#include <QMenu>
+#include <QTimer>
 
 class SettingsDialog;
 class DashboardPage;
@@ -30,12 +33,16 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void navigateTo(const QString &moduleName);
     void navigateBack();
     void onModuleClicked(const QString &moduleName);
     void onSettingsClicked();
+    void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
+    void flashTrayIcon();
+    void onNewMessage(const QString &message);
 
 private:
     Ui::MainWindow *ui;
@@ -46,10 +53,17 @@ private:
     WebSocketPage *m_websocketPage;
     StarBackground *m_starBg;
 
+    QSystemTrayIcon *m_trayIcon;
+    QMenu *m_trayMenu;
+    QTimer *m_flashTimer;
+    bool m_flashState = false;
+    QString m_lastMessage;
+
     void initPages();
     void updateBreadcrumb(const QString &path);
     bool isInTitleBarArea(const QPoint &pos) const;
     void applyTitleBarStyle();
+    void setupSystemTray();
 
     void rebuildTabBar();
     void onTabAddClicked();

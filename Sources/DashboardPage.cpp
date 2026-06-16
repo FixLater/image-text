@@ -10,13 +10,13 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     mainLayout->setContentsMargins(32, 24, 32, 24);
     mainLayout->setSpacing(0);
 
-    auto *titleLabel = new QLabel("Dashboard");
+    auto *titleLabel = new QLabel("仪表盘");
     titleLabel->setStyleSheet(
         "font-size: 20pt; font-weight: bold; color: #e2e8f0; background: transparent; border: none; padding-bottom: 4px;"
     );
     mainLayout->addWidget(titleLabel);
 
-    auto *subtitleLabel = new QLabel("Select a module to get started");
+    auto *subtitleLabel = new QLabel("选择一个模块开始使用");
     subtitleLabel->setStyleSheet(
         "font-size: 9pt; color: #64748b; background: transparent; border: none; padding-bottom: 24px;"
     );
@@ -30,7 +30,7 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     wsCard.name = "websocket";
     wsCard.icon = "⚡";
     wsCard.title = "WebSocket";
-    wsCard.description = "Connect to WebSocket servers, send messages and files in real-time";
+    wsCard.description = "连接 WebSocket 服务器，实时发送消息和文件";
 
     m_gridLayout->addWidget(createCard(wsCard), 0, 0);
 

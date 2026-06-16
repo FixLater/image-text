@@ -25,7 +25,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     titleLayout->setContentsMargins(12, 0, 0, 0);
     titleLayout->setSpacing(0);
 
-    auto *titleLabel = new QLabel("Settings", titleBar);
+    auto *titleLabel = new QLabel("设置", titleBar);
     titleLabel->setStyleSheet("color: #94a3b8; font-size: 9pt; background: transparent; border: none;");
     titleLayout->addWidget(titleLabel);
     titleLayout->addStretch();
@@ -50,13 +50,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     btnLayout->setContentsMargins(16, 8, 16, 8);
     btnLayout->addStretch();
 
-    auto *cancelBtn = new QPushButton("Cancel", btnBar);
+    auto *cancelBtn = new QPushButton("取消", btnBar);
     cancelBtn->setObjectName("settingsCancelBtn");
     cancelBtn->setFixedSize(80, 30);
     connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
     btnLayout->addWidget(cancelBtn);
 
-    auto *saveBtn = new QPushButton("Save", btnBar);
+    auto *saveBtn = new QPushButton("保存", btnBar);
     saveBtn->setObjectName("settingsSaveBtn");
     saveBtn->setFixedSize(80, 30);
     connect(saveBtn, &QPushButton::clicked, this, &SettingsDialog::onSave);
@@ -79,12 +79,12 @@ QList<ConfigModule> SettingsDialog::buildModules() {
     ws.name = "WebSocket";
     ws.icon = "⚡";
     ws.fields = {
-        {"ws/defaultUrl",       "Default URL",       "WebSocket server address",                ConfigField::String, "ws://127.0.0.1:8200/websocket"},
-        {"ws/pingIntervalMs",   "Ping Interval (ms)","Heartbeat ping interval in milliseconds", ConfigField::Int,    30000},
-        {"ws/reconnectIntervalMs","Reconnect Interval (ms)","Delay between reconnect attempts",  ConfigField::Int,    5000},
-        {"ws/maxReconnectAttempts","Max Reconnect Attempts","Maximum number of reconnect tries",  ConfigField::Int,    500},
-        {"ws/jwtTokenLength",   "JWT Token Length",   "Random token character count",            ConfigField::Int,    7},
-        {"ws/roomId",           "Room ID",            "Room identifier sent on join",            ConfigField::String, "log"},
+        {"ws/defaultUrl",       "默认地址",       "WebSocket 服务器地址",                ConfigField::String, "ws://127.0.0.1:8200/websocket"},
+        {"ws/pingIntervalMs",   "心跳间隔 (ms)","心跳包发送间隔（毫秒）", ConfigField::Int,    30000},
+        {"ws/reconnectIntervalMs","重连间隔 (ms)","重连等待时间（毫秒）",  ConfigField::Int,    5000},
+        {"ws/maxReconnectAttempts","最大重连次数","最大重连尝试次数",  ConfigField::Int,    500},
+        {"ws/jwtTokenLength",   "令牌长度",   "随机令牌字符数",            ConfigField::Int,    7},
+        {"ws/roomId",           "房间 ID",            "加入时发送的房间标识",            ConfigField::String, "log"},
     };
     modules.append(ws);
 

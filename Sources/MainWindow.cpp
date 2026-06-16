@@ -9,6 +9,10 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QToolTip>
+#include <QCloseEvent>
+#include <QSystemTrayIcon>
+#include <QApplication>
+#include <QPainter>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <windowsx.h>
@@ -18,11 +22,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
                                           ui(new Ui::MainWindow),
                                           m_activeTabIndex(-1) {
     ui->setupUi(this);
-    setWindowFlags(Qt::FramelessWindowHint);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
+    setAttribute(Qt::WA_DeleteOnClose, false);
 
     m_starBg = new StarBackground(ui->centralwidget);
     m_starBg->lower();
     m_starBg->resize(ui->centralwidget->size());
+
+    setupSystemTray();
 
     connect(ui->minimizeBtn, &QPushButton::clicked, this, [this]() { showMinimized(); });
     connect(ui->maximizeBtn, &QPushButton::clicked, this, [this]() {
@@ -55,7 +62,108 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
 void MainWindow::onSettingsClicked() {
     SettingsDialog dlg(this);
-    dlg.exec();
+    if (dlg.exec() == QDialog::Accepted) {
+        m_websocketPage->refreshUrlFromSettings();
+    }
+}
+
+void MainWindow::setupSystemTray() {
+    m_trayIcon = new QSystemTrayIcon(this);
+
+    QPixmap normalPixmap(16, 16);
+    normalPixmap.fill(Qt::transparent);
+    QPainter normalPainter(&normalPixmap);
+    normalPainter.setRenderHint(QPainter::Antialiasing);
+    normalPainter.setBrush(QColor(14, 165, 233));
+    normalPainter.setPen(Qt::NoPen);
+    normalPainter.drawEllipse(2, 2, 12, 12);
+    normalPainter.end();
+    m_trayIcon->setIcon(QIcon(normalPixmap));
+
+    m_trayIcon->setToolTip("ImageText - WebSocket 客户端");
+
+    m_trayMenu = new QMenu(this);
+    m_trayMenu->setStyleSheet(
+        "QMenu { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px; }"
+        "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
+        "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
+    );
+
+    QAction *showAction = m_trayMenu->addAction("打开");
+    connect(showAction, &QAction::triggered, this, [this]() {
+        show();
+        raise();
+        activateWindow();
+    });
+
+    m_trayMenu->addSeparator();
+
+    QAction *quitAction = m_trayMenu->addAction("退出");
+    connect(quitAction, &QAction::triggered, this, [this]() {
+        m_trayIcon->hide();
+        qApp->quit();
+    });
+
+    m_trayIcon->setContextMenu(m_trayMenu);
+
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::onTrayActivated);
+
+    m_flashTimer = new QTimer(this);
+    m_flashTimer->setInterval(500);
+    connect(m_flashTimer, &QTimer::timeout, this, &MainWindow::flashTrayIcon);
+
+    m_trayIcon->show();
+}
+
+void MainWindow::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
+    if (reason == QSystemTrayIcon::DoubleClick) {
+        show();
+        raise();
+        activateWindow();
+        if (m_flashTimer->isActive()) {
+            m_flashTimer->stop();
+            QPixmap normalPixmap(16, 16);
+            normalPixmap.fill(Qt::transparent);
+            QPainter painter(&normalPixmap);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setBrush(QColor(14, 165, 233));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(2, 2, 12, 12);
+            painter.end();
+            m_trayIcon->setIcon(QIcon(normalPixmap));
+        }
+    }
+}
+
+void MainWindow::flashTrayIcon() {
+    m_flashState = !m_flashState;
+    QPixmap pixmap(16, 16);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setBrush(m_flashState ? QColor(239, 68, 68) : QColor(14, 165, 233));
+    painter.setPen(Qt::NoPen);
+    painter.drawEllipse(2, 2, 12, 12);
+    painter.end();
+    m_trayIcon->setIcon(QIcon(pixmap));
+}
+
+void MainWindow::onNewMessage(const QString &message) {
+    m_lastMessage = message;
+    m_trayIcon->setToolTip("新消息: " + message.left(100));
+    if (!isActiveWindow()) {
+        if (!m_flashTimer->isActive()) {
+            m_flashTimer->start();
+        }
+        m_trayIcon->showMessage("新消息", message.left(200), QSystemTrayIcon::Information, 3000);
+    }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    event->ignore();
+    hide();
+    m_trayIcon->showMessage("ImageText", "程序已最小化到托盘，右键托盘图标可退出。",
+                           QSystemTrayIcon::Information, 2000);
 }
 
 MainWindow::~MainWindow() {
@@ -85,6 +193,7 @@ void MainWindow::initPages() {
     connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](int tabIndex, const QString &html) {
         m_dashboardPage->appendCardLog("websocket", tabIndex, html);
     });
+    connect(m_websocketPage, &WebSocketPage::messageReceived, this, &MainWindow::onNewMessage);
     connect(m_dashboardPage, &DashboardPage::cardPrevClicked, this, [this](const QString &name) {
         if (name == "websocket" && m_websocketPage) {
             int idx = m_websocketPage->activeTabIndex() - 1;
@@ -120,7 +229,7 @@ void MainWindow::onModuleClicked(const QString &moduleName) {
 void MainWindow::navigateTo(const QString &moduleName) {
     if (moduleName == "websocket") {
         ui->stackedWidget->setCurrentWidget(m_websocketPage);
-        updateBreadcrumb("Dashboard › WebSocket");
+        updateBreadcrumb("仪表盘 › WebSocket");
         ui->tabBarWidget->show();
         rebuildTabBar();
     }
@@ -132,7 +241,7 @@ void MainWindow::navigateTo(const QString &moduleName) {
 
 void MainWindow::navigateBack() {
     ui->stackedWidget->setCurrentWidget(m_dashboardPage);
-    updateBreadcrumb("Dashboard");
+    updateBreadcrumb("仪表盘");
 
     ui->backBtn->hide();
     ui->homeBtn->hide();

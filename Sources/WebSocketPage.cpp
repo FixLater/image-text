@@ -158,6 +158,13 @@ void WebSocketPage::connectToCurrentTab() {
     on_connectButton_clicked();
 }
 
+void WebSocketPage::refreshUrlFromSettings() {
+    if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size()) return;
+    QString url = SettingsDialog::wsUrl();
+    m_tabs[m_activeTabIndex].url = url;
+    ui->location->setText(url);
+}
+
 QString WebSocketPage::tabLogHtml(int index) const {
     if (index < 0 || index >= m_tabs.size()) return {};
     QString html;
@@ -196,14 +203,11 @@ void WebSocketPage::switchTab(int index) {
 
     bool hasClient = tab.client && tab.client->isConnected();
     bool isConnecting = tab.connecting;
-    ui->connectButton->setEnabled(!hasClient && !isConnecting);
-    ui->disconnectButton->setEnabled(hasClient);
+    ui->connectButton->setEnabled(!isConnecting);
     ui->location->setEnabled(!hasClient && !isConnecting);
     ui->sendButton->setEnabled(hasClient);
 
-    bool connected = hasClient;
-    ui->statusLabel->setProperty("connected", connected);
-    updateStatusStyle();
+    updateButtonStates(hasClient);
 
     if (tab.showFiles) {
         ui->message->hide();
@@ -263,10 +267,9 @@ void WebSocketPage::updateUIState() {
     if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size()) return;
     auto &tab = m_tabs[m_activeTabIndex];
     bool hasClient = tab.client && tab.client->isConnected();
-    ui->connectButton->setEnabled(!hasClient);
-    ui->disconnectButton->setEnabled(hasClient);
+    ui->connectButton->setEnabled(true);
     ui->location->setEnabled(!hasClient);
-    updateSendButtonState();
+    updateButtonStates(hasClient);
 }
 
 void WebSocketPage::applyApiFoxStyle() {
@@ -281,15 +284,6 @@ void WebSocketPage::applyApiFoxStyle() {
         "#connectButton:hover { background-color: #38bdf8; }"
         "#connectButton:pressed { background-color: #0284c7; }"
         "#connectButton:disabled { background-color: #36383d; color: #555; }"
-        "#disconnectButton {"
-        "  background-color: #374151; color: #9ca3af; border: none;"
-        "  border-radius: 6px; padding: 6px 20px; font-size: 9pt;"
-        "}"
-        "#disconnectButton:hover { background-color: #4b5563; color: #d1d5db; }"
-        "#disconnectButton:pressed { background-color: #374151; }"
-        "#disconnectButton:disabled { background-color: #36383d; color: #555; }"
-        "#disconnectButton:enabled { background-color: #ef4444; color: #ffffff; }"
-        "#disconnectButton:enabled:hover { background-color: #f87171; }"
 
         "QLineEdit {"
         "  background-color: #1f2023; color: #e2e8f0;"
@@ -385,6 +379,12 @@ void WebSocketPage::on_connectButton_clicked() {
     if (m_activeTabIndex < 0) return;
 
     auto &tab = m_tabs[m_activeTabIndex];
+
+    if (tab.client && tab.client->isConnected()) {
+        tab.client->disconnectFromServer();
+        return;
+    }
+
     if (tab.client) {
         tab.client->disconnectFromServer();
         tab.client->deleteLater();
@@ -419,14 +419,6 @@ void WebSocketPage::on_connectButton_clicked() {
     tab.connecting = true;
     ui->connectButton->setEnabled(false);
     tab.client->connectToServer();
-}
-
-void WebSocketPage::on_disconnectButton_clicked() {
-    if (m_activeTabIndex < 0) return;
-    auto &tab = m_tabs[m_activeTabIndex];
-    if (tab.client) {
-        tab.client->disconnectFromServer();
-    }
 }
 
 void WebSocketPage::onConnected() {
@@ -467,7 +459,9 @@ void WebSocketPage::onMessageReceived(const QString &message) {
         QJsonObject obj = doc.object();
         QString type = obj["type"].toString();
         if (type == "message" && obj.contains("content")) {
-            appendLog(obj["content"].toString(), "info", tabIndex);
+            QString content = obj["content"].toString();
+            appendLog(content, "info", tabIndex);
+            emit messageReceived(content);
             return;
         }
         if (obj.contains("msg")) {
@@ -477,6 +471,7 @@ void WebSocketPage::onMessageReceived(const QString &message) {
     }
 
     appendLog(message, "system", tabIndex);
+    emit messageReceived(message);
 }
 
 void WebSocketPage::onErrorOccurred(const QString &error) {
@@ -683,9 +678,25 @@ void WebSocketPage::appendLog(const QString &message, const QString &type, int t
 }
 
 void WebSocketPage::updateButtonStates(bool connected) {
-    ui->connectButton->setEnabled(!connected);
-    ui->disconnectButton->setEnabled(connected);
+    ui->connectButton->setEnabled(true);
     ui->location->setEnabled(!connected);
+    if (connected) {
+        ui->connectButton->setText("断开");
+        ui->connectButton->setStyleSheet(
+            "QPushButton { background-color: #ef4444; color: #ffffff; border: none;"
+            "  border-radius: 6px; padding: 6px 20px; font-size: 9pt; font-weight: bold; }"
+            "QPushButton:hover { background-color: #f87171; }"
+            "QPushButton:pressed { background-color: #dc2626; }"
+        );
+    } else {
+        ui->connectButton->setText("连接");
+        ui->connectButton->setStyleSheet(
+            "QPushButton { background-color: #0ea5e9; color: #ffffff; border: none;"
+            "  border-radius: 6px; padding: 6px 20px; font-size: 9pt; font-weight: bold; }"
+            "QPushButton:hover { background-color: #38bdf8; }"
+            "QPushButton:pressed { background-color: #0284c7; }"
+        );
+    }
     updateSendButtonState();
 }
 

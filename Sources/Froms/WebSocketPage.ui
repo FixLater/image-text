@@ -26,13 +26,7 @@
       <property name="rightMargin"><number>12</number></property>
       <item>
        <widget class="QPushButton" name="connectButton">
-        <property name="text"><string>Connect</string></property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="disconnectButton">
-        <property name="enabled"><bool>false</bool></property>
-        <property name="text"><string>Disconnect</string></property>
+         <property name="text"><string>连接</string></property>
        </widget>
       </item>
       <item>
@@ -79,12 +73,12 @@
               <property name="spacing"><number>0</number></property>
               <item>
                <widget class="QPushButton" name="tabMessage">
-                <property name="text"><string>Message</string></property>
+                 <property name="text"><string>消息</string></property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="tabFiles">
-                <property name="text"><string>Files</string></property>
+                 <property name="text"><string>文件</string></property>
                </widget>
               </item>
               <item>
@@ -124,7 +118,7 @@
              <item>
               <widget class="QPushButton" name="sendButton">
                <property name="enabled"><bool>false</bool></property>
-               <property name="text"><string>Send ▶</string></property>
+                <property name="text"><string>发送 ▶</string></property>
               </widget>
              </item>
             </layout>
