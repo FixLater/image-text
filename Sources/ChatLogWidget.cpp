@@ -2,13 +2,78 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QScrollBar>
-#include <QAbstractTextDocumentLayout>
 #include <QEvent>
+#include <QMenu>
+#include <QAction>
 #include <QtMath>
 
 ChatBubble::ChatBubble(const ChatMessage &msg, QWidget *parent)
     : QWidget(parent), m_msg(msg) {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    if (m_msg.type == "system") {
+        m_systemLabel = new QLabel(m_msg.text, this);
+        m_systemLabel->setAlignment(Qt::AlignCenter);
+        m_systemLabel->setStyleSheet(
+            "QLabel { color: #555e6e; font-size: 7pt; font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; "
+            "background: transparent; padding: 4px 0; }"
+        );
+        return;
+    }
+
+    bool isSent = (m_msg.type == "sent");
+    QColor textColor = isSent ? QColor("#ffffff") : QColor("#e2e8f0");
+    QColor avatarBg = isSent ? QColor("#3b82f6") : QColor("#10b981");
+    QString letter = isSent ? "S" : "R";
+
+    m_avatarLabel = new QLabel(this);
+    m_avatarLabel->setFixedSize(34, 34);
+    m_avatarLabel->setAlignment(Qt::AlignCenter);
+    QFont af("Microsoft YaHei UI", 12, QFont::Bold);
+    m_avatarLabel->setFont(af);
+    m_avatarLabel->setText(letter);
+    m_avatarLabel->setStyleSheet(
+        QString("QLabel { color: #ffffff; background-color: %1; border-radius: 17px; }").arg(avatarBg.name())
+    );
+
+    m_textBrowser = new QTextBrowser(this);
+    m_textBrowser->setReadOnly(true);
+    m_textBrowser->setOpenExternalLinks(false);
+    m_textBrowser->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_textBrowser->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_textBrowser->setFrameShape(QFrame::NoFrame);
+    m_textBrowser->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_textBrowser->setWordWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+    m_textBrowser->setPlaceholderText("");
+    m_textBrowser->document()->setDefaultFont(QFont("Microsoft YaHei UI", 9));
+    m_textBrowser->setPlainText(m_msg.text);
+    m_textBrowser->setStyleSheet(
+        QString(
+            "QTextBrowser {"
+            "  background-color: transparent; color: %1;"
+            "  border: none; padding: 0px; margin: 0px;"
+            "  selection-background-color: rgba(255, 255, 255, 0.3);"
+            "}"
+        ).arg(textColor.name())
+    );
+
+    connect(m_textBrowser, &QWidget::customContextMenuRequested, this, [this](QPoint pos) {
+        QMenu menu(this);
+        menu.setStyleSheet(
+            "QMenu { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px; }"
+            "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
+            "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
+        );
+        QAction *copyAction = menu.addAction("复制");
+        copyAction->setEnabled(m_textBrowser->textCursor().hasSelection());
+        QAction *selectAllAction = menu.addAction("全选");
+        QAction *selected = menu.exec(m_textBrowser->viewport()->mapToGlobal(pos));
+        if (selected == copyAction) {
+            m_textBrowser->copy();
+        } else if (selected == selectAllAction) {
+            m_textBrowser->selectAll();
+        }
+    });
 }
 
 void ChatBubble::ensureLayout() const {
@@ -52,7 +117,49 @@ QSize ChatBubble::sizeHint() const {
 
 void ChatBubble::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
-    updateGeometry();
+
+    if (m_msg.type == "system") {
+        if (m_systemLabel) m_systemLabel->setGeometry(0, 6, width(), 20);
+        return;
+    }
+
+    m_cachedBubbleW = 0;
+    m_cachedBubbleH = 0;
+    ensureLayout();
+
+    int w = width();
+    int avatarSize = 34;
+    int gap = 10;
+    int avatarMargin = 12;
+    bool isSent = (m_msg.type == "sent");
+    int avatarY = 8;
+    int avatarX, bubbleX, bubbleY = 8;
+
+    if (isSent) {
+        avatarX = w - avatarSize - avatarMargin;
+        bubbleX = avatarX - gap - m_cachedBubbleW;
+    } else {
+        avatarX = avatarMargin;
+        bubbleX = avatarX + avatarSize + gap;
+    }
+
+    if (m_avatarLabel) {
+        m_avatarLabel->move(avatarX, avatarY);
+    }
+
+    if (m_textBrowser) {
+        m_textBrowser->document()->setTextWidth(m_cachedBubbleW - 24);
+        int textX = bubbleX + 12;
+        int textY = bubbleY + 8;
+        int textW = m_cachedBubbleW - 24;
+        int textH = m_cachedBubbleH - 16;
+        m_textBrowser->setGeometry(textX, textY, textW, textH);
+    }
+
+    int totalH = m_cachedBubbleH + 16;
+    if (height() != totalH) {
+        setFixedHeight(totalH);
+    }
 }
 
 void ChatBubble::paintEvent(QPaintEvent *event) {
@@ -60,21 +167,12 @@ void ChatBubble::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
+    if (m_msg.type == "system") return;
+
     int w = width();
     int avatarSize = 34;
     int gap = 10;
     int avatarMargin = 12;
-
-    QFont bubbleFont("Microsoft YaHei UI", 9);
-    painter.setFont(bubbleFont);
-
-    if (m_msg.type == "system") {
-        QFont sysFont("Microsoft YaHei UI", 7);
-        painter.setFont(sysFont);
-        painter.setPen(QColor("#555e6e"));
-        painter.drawText(QRect(0, 6, w, 20), Qt::AlignCenter, m_msg.text);
-        return;
-    }
 
     ensureLayout();
     int bubbleW = m_cachedBubbleW;
@@ -82,9 +180,8 @@ void ChatBubble::paintEvent(QPaintEvent *event) {
 
     bool isSent = (m_msg.type == "sent");
     QColor bubbleColor = isSent ? QColor("#3b82f6") : QColor("#2a2d32");
-    QColor textColor = isSent ? QColor("#ffffff") : QColor("#e2e8f0");
     QColor avatarColor = isSent ? QColor("#3b82f6") : QColor("#10b981");
-    QString avatarLabel = isSent ? "S" : "R";
+    QString avatarLetter = isSent ? "S" : "R";
 
     int avatarY = 8;
     int avatarX;
@@ -125,43 +222,23 @@ void ChatBubble::paintEvent(QPaintEvent *event) {
     painter.setBrush(bubbleColor);
     painter.drawPath(fullPath);
 
-    QTextDocument textDoc;
-    textDoc.setDefaultFont(bubbleFont);
-    textDoc.setTextWidth(bubbleW - 24);
-    QTextOption opt;
-    opt.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-    textDoc.setDefaultTextOption(opt);
-
-    QTextCursor cursor(&textDoc);
-    QTextCharFormat fmt;
-    fmt.setForeground(textColor);
-    cursor.select(QTextCursor::Document);
-    cursor.setCharFormat(fmt);
-    cursor.insertText(m_msg.text);
-
-    painter.save();
-    painter.translate(bubbleX + 12, bubbleY + 8);
-    QAbstractTextDocumentLayout *layout = textDoc.documentLayout();
-    layout->draw(&painter, QAbstractTextDocumentLayout::PaintContext());
-    painter.restore();
-
     painter.setPen(Qt::NoPen);
     painter.setBrush(avatarColor);
     painter.drawEllipse(avatarX, avatarY, avatarSize, avatarSize);
 
-    QFont avatarFont("Microsoft YaHei UI", 12, QFont::Bold);
-    painter.setFont(avatarFont);
+    QFont avFont("Microsoft YaHei UI", 12, QFont::Bold);
+    painter.setFont(avFont);
     painter.setPen(QColor("#ffffff"));
-    painter.drawText(QRect(avatarX, avatarY, avatarSize, avatarSize), Qt::AlignCenter, avatarLabel);
+    painter.drawText(QRect(avatarX, avatarY, avatarSize, avatarSize), Qt::AlignCenter, avatarLetter);
 }
 
 ChatLogWidget::ChatLogWidget(QWidget *parent)
     : QScrollArea(parent) {
     setStyleSheet(
-        "QScrollArea { background-color: #1a1b1e; border: 1px solid transparent; border-radius: 4px; }"
+        "QScrollArea { background-color: #1a1b1e; border: 1px solid #36383d; border-radius: 6px; }"
         "QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
-        "QScrollBar::handle:vertical { background-color: #36383d; border-radius: 3px; min-height: 20px; }"
-        "QScrollBar::handle:vertical:hover { background-color: #475569; }"
+        "QScrollBar::handle:vertical { background-color: #0ea5e9; border-radius: 3px; min-height: 20px; }"
+        "QScrollBar::handle:vertical:hover { background-color: #38bdf8; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
     );
 
@@ -182,20 +259,23 @@ ChatLogWidget::ChatLogWidget(QWidget *parent)
 
 bool ChatLogWidget::eventFilter(QObject *obj, QEvent *event) {
     if (obj == viewport()) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            setFocus();
+        }
         if (event->type() == QEvent::FocusIn) {
             setStyleSheet(
-                "QScrollArea { background-color: #1a1b1e; border: 1px solid #0ea5e9; border-radius: 4px; }"
+                "QScrollArea { background-color: #1a1b1e; border: 1px solid #0ea5e9; border-radius: 6px; }"
                 "QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
-                "QScrollBar::handle:vertical { background-color: #36383d; border-radius: 3px; min-height: 20px; }"
-                "QScrollBar::handle:vertical:hover { background-color: #475569; }"
+                "QScrollBar::handle:vertical { background-color: #0ea5e9; border-radius: 3px; min-height: 20px; }"
+                "QScrollBar::handle:vertical:hover { background-color: #38bdf8; }"
                 "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
             );
         } else if (event->type() == QEvent::FocusOut) {
             setStyleSheet(
-                "QScrollArea { background-color: #1a1b1e; border: 1px solid transparent; border-radius: 4px; }"
+                "QScrollArea { background-color: #1a1b1e; border: 1px solid #36383d; border-radius: 6px; }"
                 "QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
-                "QScrollBar::handle:vertical { background-color: #36383d; border-radius: 3px; min-height: 20px; }"
-                "QScrollBar::handle:vertical:hover { background-color: #475569; }"
+                "QScrollBar::handle:vertical { background-color: #0ea5e9; border-radius: 3px; min-height: 20px; }"
+                "QScrollBar::handle:vertical:hover { background-color: #38bdf8; }"
                 "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
             );
         }

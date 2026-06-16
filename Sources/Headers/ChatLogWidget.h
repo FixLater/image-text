@@ -9,6 +9,7 @@
 #include <QTextDocument>
 #include <QScrollBar>
 #include <QResizeEvent>
+#include <QTextBrowser>
 
 struct ChatMessage {
     QString text;
@@ -27,6 +28,9 @@ protected:
 
 private:
     ChatMessage m_msg;
+    QTextBrowser *m_textBrowser = nullptr;
+    QLabel *m_avatarLabel = nullptr;
+    QLabel *m_systemLabel = nullptr;
     mutable int m_cachedBubbleW = 0;
     mutable int m_cachedBubbleH = 0;
     void ensureLayout() const;
