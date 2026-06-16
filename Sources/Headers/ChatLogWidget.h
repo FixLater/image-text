@@ -9,6 +9,7 @@
 #include <QTextDocument>
 #include <QScrollBar>
 #include <QResizeEvent>
+#include <QContextMenuEvent>
 #include <QTextBrowser>
 
 struct ChatMessage {
@@ -21,10 +22,12 @@ class ChatBubble : public QWidget {
 public:
     explicit ChatBubble(const ChatMessage &msg, QWidget *parent = nullptr);
     QSize sizeHint() const override;
+    void clearSelection();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     ChatMessage m_msg;

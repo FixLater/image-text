@@ -3,6 +3,7 @@
 #include <QPainterPath>
 #include <QScrollBar>
 #include <QEvent>
+#include <QMouseEvent>
 #include <QMenu>
 #include <QAction>
 #include <QtMath>
@@ -23,7 +24,7 @@ ChatBubble::ChatBubble(const ChatMessage &msg, QWidget *parent)
 
     bool isSent = (m_msg.type == "sent");
     QColor textColor = isSent ? QColor("#ffffff") : QColor("#e2e8f0");
-    QColor avatarBg = isSent ? QColor("#3b82f6") : QColor("#10b981");
+    QColor avatarBg = isSent ? QColor(0x3b82f6) : QColor("#10b981");
     QString letter = isSent ? "S" : "R";
 
     m_avatarLabel = new QLabel(this);
@@ -65,11 +66,15 @@ ChatBubble::ChatBubble(const ChatMessage &msg, QWidget *parent)
             "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
         );
         QAction *copyAction = menu.addAction("复制");
-        copyAction->setEnabled(m_textBrowser->textCursor().hasSelection());
         QAction *selectAllAction = menu.addAction("全选");
         QAction *selected = menu.exec(m_textBrowser->viewport()->mapToGlobal(pos));
         if (selected == copyAction) {
-            m_textBrowser->copy();
+            if (m_textBrowser->textCursor().hasSelection()) {
+                m_textBrowser->copy();
+            } else {
+                m_textBrowser->selectAll();
+                m_textBrowser->copy();
+            }
         } else if (selected == selectAllAction) {
             m_textBrowser->selectAll();
         }
@@ -102,17 +107,17 @@ void ChatBubble::ensureLayout() const {
     wopt.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
     wrapDoc.setDefaultTextOption(wopt);
     wrapDoc.setPlainText(m_msg.text);
-    m_cachedBubbleH = qMax(36, static_cast<int>(qCeil(wrapDoc.size().height())) + 16);
+    m_cachedBubbleH = qMax(36, qCeil(wrapDoc.size().height()) + 16);
 }
 
 QSize ChatBubble::sizeHint() const {
     if (m_msg.type == "system") {
         int w = parentWidget() ? parentWidget()->width() : 400;
-        return QSize(w, 28);
+        return {w, 28};
     }
     ensureLayout();
     int w = parentWidget() ? parentWidget()->width() : 400;
-    return QSize(w, m_cachedBubbleH + 16);
+    return {w, m_cachedBubbleH + 16};
 }
 
 void ChatBubble::resizeEvent(QResizeEvent *event) {
@@ -195,7 +200,7 @@ void ChatBubble::paintEvent(QPaintEvent *event) {
         bubbleX = avatarX + avatarSize + gap;
     }
 
-    int radius = 10;
+    int radius = 6;
     int tailSize = 6;
     int tailMiddleY = bubbleY + 14;
 
@@ -232,6 +237,38 @@ void ChatBubble::paintEvent(QPaintEvent *event) {
     painter.drawText(QRect(avatarX, avatarY, avatarSize, avatarSize), Qt::AlignCenter, avatarLetter);
 }
 
+void ChatBubble::contextMenuEvent(QContextMenuEvent *event) {
+    if (m_msg.type == "system" || !m_textBrowser) return;
+
+    QMenu menu(this);
+    menu.setStyleSheet(
+        "QMenu { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px; }"
+        "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
+        "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
+    );
+    QAction *copyAction = menu.addAction("复制");
+    QAction *selectAllAction = menu.addAction("全选");
+    QAction *selected = menu.exec(event->globalPos());
+    if (selected == copyAction) {
+        if (m_textBrowser->textCursor().hasSelection()) {
+            m_textBrowser->copy();
+        } else {
+            m_textBrowser->selectAll();
+            m_textBrowser->copy();
+        }
+    } else if (selected == selectAllAction) {
+        m_textBrowser->selectAll();
+    }
+}
+
+void ChatBubble::clearSelection() {
+    if (m_textBrowser) {
+        QTextCursor cursor = m_textBrowser->textCursor();
+        cursor.clearSelection();
+        m_textBrowser->setTextCursor(cursor);
+    }
+}
+
 ChatLogWidget::ChatLogWidget(QWidget *parent)
     : QScrollArea(parent) {
     setStyleSheet(
@@ -260,6 +297,27 @@ ChatLogWidget::ChatLogWidget(QWidget *parent)
 bool ChatLogWidget::eventFilter(QObject *obj, QEvent *event) {
     if (obj == viewport()) {
         if (event->type() == QEvent::MouseButtonPress) {
+            QMouseEvent *me = static_cast<QMouseEvent *>(event);
+            QWidget *clickedWidget = childAt(me->pos());
+            bool clickedOnTextBrowser = false;
+            while (clickedWidget) {
+                if (qobject_cast<QTextBrowser *>(clickedWidget)) {
+                    clickedOnTextBrowser = true;
+                    break;
+                }
+                clickedWidget = clickedWidget->parentWidget();
+            }
+            if (!clickedOnTextBrowser) {
+                for (int i = 0; i < m_layout->count(); i++) {
+                    QLayoutItem *item = m_layout->itemAt(i);
+                    if (item && item->widget()) {
+                        auto *bubble = qobject_cast<ChatBubble *>(item->widget());
+                        if (bubble) {
+                            bubble->clearSelection();
+                        }
+                    }
+                }
+            }
             setFocus();
         }
         if (event->type() == QEvent::FocusIn) {
