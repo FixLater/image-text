@@ -2,8 +2,10 @@
 #include "ui_MainWindow.h"
 #include "DashboardPage.h"
 #include "WebSocketPage.h"
+#include "TranslationPage.h"
 #include "SettingsDialog.h"
 #include "StarBackground.h"
+#include "TranslationPage.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMenu>
@@ -184,9 +186,11 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
 void MainWindow::initPages() {
     m_dashboardPage = new DashboardPage(this);
     m_websocketPage = new WebSocketPage(this);
+    m_translationPage = new TranslationPage(this);
 
     ui->stackedWidget->addWidget(m_dashboardPage);
     ui->stackedWidget->addWidget(m_websocketPage);
+    ui->stackedWidget->addWidget(m_translationPage);
     ui->stackedWidget->setCurrentIndex(0);
 
     connect(m_dashboardPage, &DashboardPage::moduleClicked, this, &MainWindow::onModuleClicked);
@@ -227,6 +231,8 @@ void MainWindow::initPages() {
 void MainWindow::onModuleClicked(const QString &moduleName) {
     if (moduleName == "websocket") {
         navigateTo("websocket");
+    } else if (moduleName == "translate") {
+        navigateTo("translate");
     }
 }
 
@@ -236,6 +242,10 @@ void MainWindow::navigateTo(const QString &moduleName) {
         updateBreadcrumb("仪表盘 › WebSocket");
         ui->tabBarWidget->show();
         rebuildTabBar();
+    } else if (moduleName == "translate") {
+        ui->stackedWidget->setCurrentWidget(m_translationPage);
+        updateBreadcrumb("仪表盘 › 翻译");
+        ui->tabBarWidget->hide();
     }
 
     ui->backBtn->show();

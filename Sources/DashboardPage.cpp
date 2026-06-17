@@ -36,6 +36,14 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
 
     m_gridLayout->addWidget(createCard(wsCard), 0, 0);
 
+    ModuleCard translateCard;
+    translateCard.name = "translate";
+    translateCard.icon = "🌐";
+    translateCard.title = "翻译";
+    translateCard.description = "使用 DeepL 进行多语言文本翻译";
+
+    m_gridLayout->addWidget(createCard(translateCard), 0, 1);
+
     mainLayout->addLayout(m_gridLayout);
     mainLayout->addStretch(1);
 }
