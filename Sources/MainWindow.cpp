@@ -166,8 +166,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     event->ignore();
     setWindowFlags(windowFlags() | Qt::Tool);
     hide();
-    m_trayIcon->showMessage("Lovely", "程序已最小化到托盘，右键托盘图标可退出。",
-                           QSystemTrayIcon::Information, 2000);
+    // m_trayIcon->showMessage("lovely", "程序已最小化到托盘，右键托盘图标可退出。",
+                           // QSystemTrayIcon::Information, 2000);
 }
 
 MainWindow::~MainWindow() {

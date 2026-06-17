@@ -8,6 +8,7 @@
 #include <QFrame>
 #include <QMouseEvent>
 #include <QIcon>
+#include <QCoreApplication>
 
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
                                                   m_dragging(false) {
@@ -71,7 +72,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
 }
 
 QSettings *SettingsDialog::settings() {
-    static QSettings s("lovely", "Settings");
+    static QSettings s(QCoreApplication::applicationDirPath() + "/lovely.ini", QSettings::IniFormat);
     return &s;
 }
 
@@ -161,6 +162,7 @@ void SettingsDialog::onSave() {
             }
         }
     }
+    s->sync();
     accept();
 }
 
