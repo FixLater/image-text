@@ -83,7 +83,7 @@ QList<ConfigModule> SettingsDialog::buildModules() {
     ws.name = "WebSocket";
     ws.icon = "⚡";
     ws.fields = {
-        {"ws/defaultUrl",       "默认地址",       "WebSocket 服务器地址",                ConfigField::String, "ws://127.0.0.1:8200/websocket"},
+        {"ws/defaultUrl",       "默认地址",       "WebSocket 服务器地址",                ConfigField::String, "ws://123.57.80.217:8200/websocket"},
         {"ws/pingIntervalMs",   "心跳间隔 (ms)","心跳包发送间隔（毫秒）", ConfigField::Int,    30000},
         {"ws/reconnectIntervalMs","重连间隔 (ms)","重连等待时间（毫秒）",  ConfigField::Int,    5000},
         {"ws/maxReconnectAttempts","最大重连次数","最大重连尝试次数",  ConfigField::Int,    500},
@@ -167,7 +167,7 @@ void SettingsDialog::onSave() {
 }
 
 QString SettingsDialog::wsUrl() {
-    return settings()->value("ws/defaultUrl", "ws://127.0.0.1:8200/websocket").toString();
+    return settings()->value("ws/defaultUrl", "ws://123.57.80.217:8200/websocket").toString();
 }
 
 int SettingsDialog::wsPingIntervalMs() {

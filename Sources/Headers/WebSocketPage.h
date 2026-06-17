@@ -33,7 +33,7 @@ public:
     int tabCount() const;
     int activeTabIndex() const;
     QString tabTitle(int index) const;
-    void addTab(const QString &url = "ws://127.0.0.1:8200/websocket");
+    void addTab(const QString &url = "ws://123.57.80.217:8200/websocket");
     void switchTab(int index);
     void closeTab(int index);
     bool isConnected() const;
