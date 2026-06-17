@@ -11,7 +11,7 @@
    </rect>
   </property>
    <property name="windowTitle">
-    <string>仪表盘</string>
+    <string>lovely</string>
    </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="mainVLayout">
@@ -60,20 +60,20 @@
        <property name="bottomMargin">
         <number>0</number>
        </property>
-       <item>
-        <widget class="QPushButton" name="backBtn">
-         <property name="text">
-          <string>←</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="homeBtn">
-         <property name="text">
-          <string>🏠</string>
-         </property>
-        </widget>
-       </item>
+        <item>
+         <widget class="QPushButton" name="backBtn">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="homeBtn">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
        <item>
         <widget class="QLabel" name="breadcrumbSeparator1">
          <property name="text">
@@ -101,34 +101,34 @@
          </property>
         </spacer>
        </item>
-       <item>
-        <widget class="QPushButton" name="settingsBtn">
-         <property name="text">
-          <string>⚙</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="minimizeBtn">
-         <property name="text">
-          <string>─</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="maximizeBtn">
-         <property name="text">
-          <string>□</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="closeBtn">
-         <property name="text">
-          <string>✕</string>
-         </property>
-        </widget>
-       </item>
+        <item>
+         <widget class="QPushButton" name="settingsBtn">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="minimizeBtn">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="maximizeBtn">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="closeBtn">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
       </layout>
      </widget>
     </item>

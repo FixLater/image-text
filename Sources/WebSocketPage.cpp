@@ -206,8 +206,24 @@ void WebSocketPage::switchTab(int index) {
     ui->connectButton->setEnabled(!isConnecting);
     ui->location->setEnabled(!hasClient && !isConnecting);
     ui->sendButton->setEnabled(hasClient);
+    ui->message->setEnabled(hasClient);
 
-    updateButtonStates(hasClient);
+    if (isConnecting) {
+        ui->connectButton->setEnabled(false);
+        ui->connectButton->setText("连接中...");
+        ui->connectButton->setStyleSheet(
+            "QPushButton { background-color: #36383d; color: #555; border: none;"
+            "  border-radius: 6px; padding: 6px 20px; font-size: 9pt; font-weight: bold; }"
+        );
+        ui->sendButton->setEnabled(false);
+        ui->location->setEnabled(false);
+        ui->message->setEnabled(false);
+        ui->statusLabel->setProperty("connected", false);
+        ui->statusLabel->setText("  ● 连接中...  ");
+        ui->statusLabel->setStyleSheet("color: #f59e0b; font-size: 9pt; font-weight: bold;");
+    } else {
+        updateButtonStates(hasClient);
+    }
 
     if (tab.showFiles) {
         ui->message->hide();
@@ -299,6 +315,7 @@ void WebSocketPage::applyApiFoxStyle() {
         "  padding: 8px; font-size: 10pt; selection-background-color: #0ea5e9;"
         "}"
         "QTextEdit:focus { border: 1px solid #0ea5e9; }"
+        "QTextEdit:disabled { background-color: #26282c; color: #555; border: 1px solid #26282c; }"
 
         "QTableView {"
         "  background-color: #1f2023; color: #e2e8f0;"
@@ -418,6 +435,17 @@ void WebSocketPage::on_connectButton_clicked() {
     connect(tab.client, &QtWebSocketClient::reconnecting, this, &WebSocketPage::onReconnecting);
     tab.connecting = true;
     ui->connectButton->setEnabled(false);
+    ui->connectButton->setText("连接中...");
+    ui->connectButton->setStyleSheet(
+        "QPushButton { background-color: #36383d; color: #555; border: none;"
+        "  border-radius: 6px; padding: 6px 20px; font-size: 9pt; font-weight: bold; }"
+    );
+    ui->sendButton->setEnabled(false);
+    ui->location->setEnabled(false);
+    ui->message->setEnabled(false);
+    ui->statusLabel->setProperty("connected", false);
+    ui->statusLabel->setText("  ● 连接中...  ");
+    ui->statusLabel->setStyleSheet("color: #f59e0b; font-size: 9pt; font-weight: bold;");
     tab.client->connectToServer();
 }
 
@@ -427,6 +455,7 @@ void WebSocketPage::onConnected() {
         m_tabs[tabIndex].connecting = false;
     }
     if (tabIndex == m_activeTabIndex) {
+        ui->message->setEnabled(true);
         updateButtonStates(true);
         ui->statusLabel->setProperty("connected", true);
         updateStatusStyle();
@@ -442,6 +471,7 @@ void WebSocketPage::onDisconnected() {
         m_tabs[tabIndex].connecting = false;
     }
     if (tabIndex == m_activeTabIndex) {
+        ui->message->setEnabled(true);
         updateButtonStates(false);
         ui->statusLabel->setProperty("connected", false);
         updateStatusStyle();
@@ -481,7 +511,10 @@ void WebSocketPage::onErrorOccurred(const QString &error) {
         m_tabs[tabIndex].connecting = false;
     }
     if (tabIndex == m_activeTabIndex) {
-        ui->connectButton->setEnabled(true);
+        ui->message->setEnabled(true);
+        updateButtonStates(false);
+        ui->statusLabel->setProperty("connected", false);
+        updateStatusStyle();
     }
 }
 

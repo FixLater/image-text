@@ -7,6 +7,7 @@
 #include <QScrollArea>
 #include <QFrame>
 #include <QMouseEvent>
+#include <QIcon>
 
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
                                                   m_dragging(false) {
@@ -30,9 +31,11 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     titleLayout->addWidget(titleLabel);
     titleLayout->addStretch();
 
-    auto *closeBtn = new QPushButton("✕", titleBar);
+    auto *closeBtn = new QPushButton(titleBar);
     closeBtn->setObjectName("settingsCloseBtn");
     closeBtn->setFixedSize(36, 36);
+    closeBtn->setIcon(QIcon(":/icons/close.svg"));
+    closeBtn->setIconSize(QSize(16, 16));
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
     titleLayout->addWidget(closeBtn);
 
@@ -68,7 +71,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
 }
 
 QSettings *SettingsDialog::settings() {
-    static QSettings s("ImageText", "Settings");
+    static QSettings s("lovely", "Settings");
     return &s;
 }
 
@@ -232,10 +235,10 @@ void SettingsDialog::applyDialogStyle() {
 
         "#settingsTitleBar { background-color: #26282c; }"
         "#settingsCloseBtn {"
-        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
-        "  border-radius: 4px; padding: 2px 4px 6px 4px;"
+        "  background: transparent; border: none;"
+        "  border-radius: 4px;"
         "}"
-        "#settingsCloseBtn:hover { background-color: #dc2626; color: #ffffff; }"
+        "#settingsCloseBtn:hover { background-color: #dc2626; }"
 
         "QScrollArea { background: transparent; border: none; }"
         "QScrollArea > QWidget > QWidget { background: transparent; }"

@@ -23,8 +23,8 @@ ChatBubble::ChatBubble(const ChatMessage &msg, QWidget *parent)
     }
 
     bool isSent = (m_msg.type == "sent");
-    QColor textColor = isSent ? QColor("#ffffff") : QColor("#e2e8f0");
-    QColor avatarBg = isSent ? QColor(0x3b82f6) : QColor("#10b981");
+    QColor textColor = isSent ? QColor(0xffffff) : QColor(0xe2e8f0);
+    QColor avatarBg = isSent ? QColor(0x3b82f6) : QColor(0x10b981);
     QString letter = isSent ? "S" : "R";
 
     m_avatarLabel = new QLabel(this);
@@ -184,8 +184,8 @@ void ChatBubble::paintEvent(QPaintEvent *event) {
     int bubbleH = m_cachedBubbleH;
 
     bool isSent = (m_msg.type == "sent");
-    QColor bubbleColor = isSent ? QColor("#3b82f6") : QColor("#2a2d32");
-    QColor avatarColor = isSent ? QColor("#3b82f6") : QColor("#10b981");
+    QColor bubbleColor = isSent ? QColor(0x3b82f6) : QColor(0x2a2d32);
+    QColor avatarColor = isSent ? QColor(0x3b82f6) : QColor(0x10b981);
     QString avatarLetter = isSent ? "S" : "R";
 
     int avatarY = 8;
@@ -233,7 +233,7 @@ void ChatBubble::paintEvent(QPaintEvent *event) {
 
     QFont avFont("Microsoft YaHei UI", 12, QFont::Bold);
     painter.setFont(avFont);
-    painter.setPen(QColor("#ffffff"));
+    painter.setPen(QColor(0xffffff));
     painter.drawText(QRect(avatarX, avatarY, avatarSize, avatarSize), Qt::AlignCenter, avatarLetter);
 }
 
@@ -297,7 +297,7 @@ ChatLogWidget::ChatLogWidget(QWidget *parent)
 bool ChatLogWidget::eventFilter(QObject *obj, QEvent *event) {
     if (obj == viewport()) {
         if (event->type() == QEvent::MouseButtonPress) {
-            QMouseEvent *me = static_cast<QMouseEvent *>(event);
+            auto *me = dynamic_cast<QMouseEvent *>(event);
             QWidget *clickedWidget = childAt(me->pos());
             bool clickedOnTextBrowser = false;
             while (clickedWidget) {
@@ -347,7 +347,7 @@ void ChatLogWidget::appendMessage(const QString &text, const QString &type) {
     msg.type = type;
     m_messages.append(msg);
 
-    ChatBubble *bubble = new ChatBubble(msg, m_container);
+    auto *bubble = new ChatBubble(msg, m_container);
     m_layout->insertWidget(m_layout->count() - 1, bubble);
 
     QScrollBar *sb = verticalScrollBar();

@@ -13,6 +13,7 @@
 #include <QSystemTrayIcon>
 #include <QApplication>
 #include <QPainter>
+#include <QIcon>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <windowsx.h>
@@ -22,7 +23,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
                                           ui(new Ui::MainWindow),
                                           m_activeTabIndex(-1) {
     ui->setupUi(this);
-    setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
+    setWindowFlags(Qt::FramelessWindowHint);
     setAttribute(Qt::WA_DeleteOnClose, false);
 
     m_starBg = new StarBackground(ui->centralwidget);
@@ -35,10 +36,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     connect(ui->maximizeBtn, &QPushButton::clicked, this, [this]() {
         if (isMaximized()) {
             showNormal();
-            ui->maximizeBtn->setText("□");
+            ui->maximizeBtn->setIcon(QIcon(":/icons/maximize.svg"));
         } else {
             showMaximized();
-            ui->maximizeBtn->setText("❐");
+            ui->maximizeBtn->setIcon(QIcon(":/icons/restore.svg"));
         }
     });
     connect(ui->closeBtn, &QPushButton::clicked, this, &QWidget::close);
@@ -49,6 +50,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->closeBtn->setFixedSize(36, 36);
     ui->settingsBtn->setFixedSize(36, 36);
     ui->tabAdd->setFixedSize(32, 24);
+
+    ui->minimizeBtn->setIcon(QIcon(":/icons/minimize.svg"));
+    ui->minimizeBtn->setIconSize(QSize(16, 16));
+    ui->maximizeBtn->setIcon(QIcon(":/icons/maximize.svg"));
+    ui->maximizeBtn->setIconSize(QSize(16, 16));
+    ui->closeBtn->setIcon(QIcon(":/icons/close.svg"));
+    ui->closeBtn->setIconSize(QSize(16, 16));
+    ui->settingsBtn->setIcon(QIcon(":/icons/settings.svg"));
+    ui->settingsBtn->setIconSize(QSize(16, 16));
+    ui->backBtn->setIcon(QIcon(":/icons/back.svg"));
+    ui->backBtn->setIconSize(QSize(14, 14));
+    ui->homeBtn->setIcon(QIcon(":/icons/home.svg"));
+    ui->homeBtn->setIconSize(QSize(14, 14));
 
     connect(ui->backBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
     connect(ui->homeBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
@@ -69,18 +83,9 @@ void MainWindow::onSettingsClicked() {
 
 void MainWindow::setupSystemTray() {
     m_trayIcon = new QSystemTrayIcon(this);
+        m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
 
-    QPixmap normalPixmap(16, 16);
-    normalPixmap.fill(Qt::transparent);
-    QPainter normalPainter(&normalPixmap);
-    normalPainter.setRenderHint(QPainter::Antialiasing);
-    normalPainter.setBrush(QColor(14, 165, 233));
-    normalPainter.setPen(Qt::NoPen);
-    normalPainter.drawEllipse(2, 2, 12, 12);
-    normalPainter.end();
-    m_trayIcon->setIcon(QIcon(normalPixmap));
-
-    m_trayIcon->setToolTip("ImageText - WebSocket 客户端");
+    m_trayIcon->setToolTip("lovely - WebSocket 客户端");
 
     m_trayMenu = new QMenu(this);
     m_trayMenu->setStyleSheet(
@@ -91,6 +96,7 @@ void MainWindow::setupSystemTray() {
 
     QAction *showAction = m_trayMenu->addAction("打开");
     connect(showAction, &QAction::triggered, this, [this]() {
+        setWindowFlags(windowFlags() & ~Qt::Tool);
         show();
         raise();
         activateWindow();
@@ -117,35 +123,32 @@ void MainWindow::setupSystemTray() {
 
 void MainWindow::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
     if (reason == QSystemTrayIcon::DoubleClick) {
+        setWindowFlags(windowFlags() & ~Qt::Tool);
         show();
         raise();
         activateWindow();
         if (m_flashTimer->isActive()) {
             m_flashTimer->stop();
-            QPixmap normalPixmap(16, 16);
-            normalPixmap.fill(Qt::transparent);
-            QPainter painter(&normalPixmap);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setBrush(QColor(14, 165, 233));
-            painter.setPen(Qt::NoPen);
-            painter.drawEllipse(2, 2, 12, 12);
-            painter.end();
-            m_trayIcon->setIcon(QIcon(normalPixmap));
+    m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
         }
     }
 }
 
 void MainWindow::flashTrayIcon() {
     m_flashState = !m_flashState;
-    QPixmap pixmap(16, 16);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setBrush(m_flashState ? QColor(239, 68, 68) : QColor(14, 165, 233));
-    painter.setPen(Qt::NoPen);
-    painter.drawEllipse(2, 2, 12, 12);
-    painter.end();
-    m_trayIcon->setIcon(QIcon(pixmap));
+    if (m_flashState) {
+            m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
+    } else {
+        QPixmap pixmap(16, 16);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(QColor(239, 68, 68));
+        painter.setPen(Qt::NoPen);
+        painter.drawEllipse(2, 2, 12, 12);
+        painter.end();
+        m_trayIcon->setIcon(QIcon(pixmap));
+    }
 }
 
 void MainWindow::onNewMessage(const QString &message) {
@@ -161,8 +164,9 @@ void MainWindow::onNewMessage(const QString &message) {
 
 void MainWindow::closeEvent(QCloseEvent *event) {
     event->ignore();
+    setWindowFlags(windowFlags() | Qt::Tool);
     hide();
-    m_trayIcon->showMessage("ImageText", "程序已最小化到托盘，右键托盘图标可退出。",
+    m_trayIcon->showMessage("Lovely", "程序已最小化到托盘，右键托盘图标可退出。",
                            QSystemTrayIcon::Information, 2000);
 }
 
@@ -470,8 +474,14 @@ void MainWindow::applyTitleBarStyle() {
         "#titleBarWidget { background-color: #26282c; }"
         "#tabBarWidget { background-color: #222326; border-radius: 0; }"
 
+        "#minimizeBtn, #maximizeBtn, #closeBtn, #settingsBtn {"
+        "  background: transparent; border: none; border-radius: 4px;"
+        "}"
+        "#minimizeBtn:hover, #maximizeBtn:hover, #settingsBtn:hover { background-color: #36383d; }"
+        "#closeBtn:hover { background-color: #dc2626; }"
+
         "#backBtn, #homeBtn {"
-        "  background: transparent; color: #94a3b8; border: none; font-size: 11pt;"
+        "  background: transparent; color: #94a3b8; border: none;"
         "  border-radius: 4px; padding: 3px 4px 5px 8px;"
         "}"
         "#backBtn:hover, #homeBtn:hover { background-color: #36383d; color: #e2e8f0; }"
@@ -484,27 +494,6 @@ void MainWindow::applyTitleBarStyle() {
         "#breadcrumbLabel {"
         "  color: #94a3b8; font-size: 9pt; background: transparent; border: none;"
         "}"
-
-        "#minimizeBtn {"
-        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
-        "  border-radius: 4px; padding: 2px 4px 6px 4px;"
-        "}"
-        "#maximizeBtn {"
-        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
-        "  border-radius: 4px; padding: 0px 4px 8px 4px;"
-        "}"
-
-        "#minimizeBtn:hover, #maximizeBtn:hover { background-color: #36383d; color: #d1d5db; }"
-        "#settingsBtn {"
-        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
-        "  border-radius: 4px; padding: 2px 4px 6px 4px;"
-        "}"
-        "#settingsBtn:hover { background-color: #36383d; color: #0ea5e9; }"
-        "#closeBtn {"
-        "  background: transparent; color: #6b7280; border: none; font-size: 12pt;"
-        "  border-radius: 4px; padding: 2px 4px 6px 4px;"
-        "}"
-        "#closeBtn:hover { background-color: #dc2626; color: #ffffff; }"
 
         "QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
         "QScrollBar::handle:vertical { background-color: #36383d; border-radius: 4px; min-height: 20px; }"

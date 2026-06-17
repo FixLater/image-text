@@ -11,12 +11,14 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     mainLayout->setSpacing(0);
 
     auto *titleLabel = new QLabel("仪表盘");
+    titleLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     titleLabel->setStyleSheet(
         "font-size: 20pt; font-weight: bold; color: #e2e8f0; background: transparent; border: none; padding-bottom: 4px;"
     );
     mainLayout->addWidget(titleLabel);
 
     auto *subtitleLabel = new QLabel("选择一个模块开始使用");
+    subtitleLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     subtitleLabel->setStyleSheet(
         "font-size: 9pt; color: #64748b; background: transparent; border: none; padding-bottom: 24px;"
     );
@@ -24,7 +26,7 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
 
     m_gridLayout = new QGridLayout();
     m_gridLayout->setSpacing(16);
-    m_gridLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    m_gridLayout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
 
     ModuleCard wsCard;
     wsCard.name = "websocket";
