@@ -14,6 +14,7 @@
 #include <QCloseEvent>
 #include <QSystemTrayIcon>
 #include <QApplication>
+#include <QMessageBox>
 #include <QPainter>
 #include <QIcon>
 #ifdef Q_OS_WIN
@@ -165,11 +166,35 @@ void MainWindow::onNewMessage(const QString &message) {
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
+    int closeAction = SettingsDialog::closeAction();
+    if (closeAction == 0) {
+        if (!SettingsDialog::exitWithoutReminder()) {
+            QMessageBox msgBox(this);
+            msgBox.setWindowTitle("退出确认");
+            msgBox.setText("确定要退出程序吗？");
+            msgBox.setIcon(QMessageBox::Question);
+            msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+            msgBox.setDefaultButton(QMessageBox::No);
+            msgBox.setStyleSheet(
+                "QMessageBox { background-color: #191a1c; }"
+                "QMessageBox QLabel { color: #e2e8f0; font-size: 9pt; }"
+                "QPushButton { background-color: #374151; color: #e2e8f0; border: none;"
+                "  border-radius: 4px; padding: 6px 20px; font-size: 9pt; }"
+                "QPushButton:hover { background-color: #4b5563; }"
+                "QPushButton:pressed { background-color: #374151; }"
+            );
+            auto ret = msgBox.exec();
+            if (ret != QMessageBox::Yes) {
+                event->ignore();
+                return;
+            }
+        }
+        event->accept();
+        return;
+    }
     event->ignore();
     setWindowFlags(windowFlags() | Qt::Tool);
     hide();
-    // m_trayIcon->showMessage("lovely", "程序已最小化到托盘，右键托盘图标可退出。",
-                           // QSystemTrayIcon::Information, 2000);
 }
 
 MainWindow::~MainWindow() {
@@ -482,6 +507,7 @@ void MainWindow::applyTitleBarStyle() {
         "QWidget { color: #e0e0e0; }"
 
         "#titleBarWidget { background-color: #26282c; }"
+        "#bottomBarWidget { background-color: #26282c; }"
         "#tabBarWidget { background-color: #222326; border-radius: 0; }"
 
         "#minimizeBtn, #maximizeBtn, #closeBtn, #settingsBtn {"
@@ -489,6 +515,11 @@ void MainWindow::applyTitleBarStyle() {
         "}"
         "#minimizeBtn:hover, #maximizeBtn:hover, #settingsBtn:hover { background-color: #36383d; }"
         "#closeBtn:hover { background-color: #dc2626; }"
+
+        "#bottomBtn1, #bottomBtn2 {"
+        "  background: transparent; border: none; border-radius: 4px;"
+        "}"
+        "#bottomBtn1:hover, #bottomBtn2:hover { background-color: #36383d; }"
 
         "#backBtn, #homeBtn {"
         "  background: transparent; color: #94a3b8; border: none;"

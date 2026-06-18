@@ -22,10 +22,10 @@
 #include <QVBoxLayout>
 
 namespace {
-constexpr int kCardWidth = 436;
-constexpr int kDefaultInputHeight = 274;
-constexpr int kCompactInputHeight = 106;
-constexpr int kResultHeight = 166;
+constexpr int kCardWidth = 560;
+constexpr int kDefaultInputHeight = 320;
+constexpr int kCompactInputHeight = 120;
+constexpr int kResultHeight = 180;
 
 QString iconButtonStyle()
 {
@@ -88,7 +88,7 @@ int TranslationPage::calcInputContentHeight()
     const QRect textRect = fm.boundingRect(QRect(0, 0, textWidth, 10000),
                                            Qt::TextWordWrap,
                                            m_inputEdit->toPlainText().trimmed());
-    return qBound(34, textRect.height() + 10, 54);
+    return qBound(34, textRect.height() + 10, 80);
 }
 
 bool TranslationPage::eventFilter(QObject *watched, QEvent *event)
@@ -148,14 +148,20 @@ void TranslationPage::setupUI()
         "  background: rgba(10, 18, 38, 184); color: #eef4ff; border: 1px solid rgba(160, 184, 238, 77); border-radius: 8px;"
         "  font-size: 13px; padding-left: 12px;"
         "}"
-        "QComboBox::drop-down { border: none; width: 24px; }"
+        "QComboBox::drop-down { border: none; width: 28px; }"
         "QComboBox::down-arrow { image: none; width: 0; height: 0;"
-        "  border-left: 4px solid transparent; border-right: 4px solid transparent;"
-        "  border-top: 4px solid #b8c7e6; margin-right: 10px;"
+        "  border-left: 5px solid transparent; border-right: 5px solid transparent;"
+        "  border-top: 6px solid #b8c7e6; margin-right: 10px;"
         "}"
         "QComboBox QAbstractItemView {"
         "  background: #101a32; color: #eef4ff; border: 1px solid rgba(160, 184, 238, 92);"
         "  selection-background-color: rgba(101, 126, 255, 71); selection-color: #ffffff;"
+        "}"
+        "QComboBox QAbstractItemView::item {"
+        "  padding: 6px 12px; min-height: 20px;"
+        "}"
+        "QComboBox QAbstractItemView::item:hover {"
+        "  background: rgba(101, 126, 255, 40); color: #ffffff;"
         "}");
     topRow->addWidget(m_sourceLangCombo);
     topRow->addStretch(1);
@@ -174,7 +180,7 @@ void TranslationPage::setupUI()
     m_inputEdit->setStyleSheet(
         "QTextEdit {"
         "  background: transparent; color: #f7fbff; border: none;"
-        "  font-size: 24px; font-weight: 600; padding: 0 0 0 0;"
+        "  font-size: 16px; font-weight: 400; padding: 0 0 0 0;"
         "  selection-background-color: rgba(114, 142, 255, 115);"
         "  placeholder-text-color: rgba(210, 220, 246, 184);"
         "}"
@@ -191,6 +197,7 @@ void TranslationPage::setupUI()
     m_clearBtn->setFixedSize(28, 28);
     m_clearBtn->setToolTip("清空");
     m_clearBtn->setStyleSheet(iconButtonStyle());
+    m_clearBtn->hide();
     connect(m_clearBtn, &QPushButton::clicked, this, &TranslationPage::onClearClicked);
     actionColumn->addWidget(m_clearBtn);
 
@@ -199,6 +206,7 @@ void TranslationPage::setupUI()
     m_translateBtn->setFixedSize(28, 28);
     m_translateBtn->setToolTip("翻译");
     m_translateBtn->setStyleSheet(iconButtonStyle());
+    m_translateBtn->hide();
     connect(m_translateBtn, &QPushButton::clicked, this, &TranslationPage::onTranslateClicked);
     actionColumn->addWidget(m_translateBtn);
 
@@ -267,16 +275,20 @@ void TranslationPage::setupUI()
     m_resultAreaHeight = 0;
     m_resultAreaTargetHeight = kResultHeight;
     m_inputCardHeight = m_inputCardDefaultHeight;
-    m_inputEdit->setFixedHeight(190);
+    m_inputEdit->setFixedHeight(220);
     m_inputCard->setFixedHeight(m_inputCardDefaultHeight);
 }
 
 void TranslationPage::onInputTextChanged()
 {
+    const bool hasText = !m_inputEdit->toPlainText().trimmed().isEmpty();
+    m_clearBtn->setVisible(hasText);
+    m_translateBtn->setVisible(hasText);
+
     if (m_resultVisible) {
         m_inputEdit->setFixedHeight(calcInputContentHeight());
     } else {
-        m_inputEdit->setFixedHeight(190);
+        m_inputEdit->setFixedHeight(220);
     }
 }
 
@@ -410,7 +422,7 @@ void TranslationPage::hideResultWithAnimation()
         m_resultAnim->deleteLater();
     }
 
-    m_inputEdit->setFixedHeight(190);
+    m_inputEdit->setFixedHeight(220);
 
     m_heightAnim = new QPropertyAnimation(this, "inputCardHeight", this);
     m_heightAnim->setDuration(260);

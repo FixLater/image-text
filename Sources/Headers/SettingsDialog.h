@@ -2,11 +2,16 @@
 #define SETTINGSDIALOG_H
 
 #include <QDialog>
-#include <QTabWidget>
+#include <QStackedWidget>
+#include <QListWidget>
 #include <QVBoxLayout>
 #include <QSettings>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QRadioButton>
+#include <QButtonGroup>
 #include <QMap>
 #include <QPoint>
 
@@ -14,8 +19,9 @@ struct ConfigField {
     QString key;
     QString label;
     QString tooltip;
-    enum Type { String, Int } type;
+    enum Type { String, Int, Bool, Choice } type;
     QVariant defaultValue;
+    QStringList choices;
 };
 
 struct ConfigModule {
@@ -39,18 +45,23 @@ public:
     static int wsJwtTokenLength();
     static QString wsRoomId();
 
+    static bool exitWithoutReminder();
+    static int closeAction();
+
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
-    QTabWidget *m_tabWidget;
+    QListWidget *m_navList;
+    QStackedWidget *m_stack;
     bool m_dragging;
     QPoint m_dragPos;
 
-    void buildTabs();
-    QWidget *createModuleTab(const ConfigModule &module);
+    void buildNav();
+
+    static QWidget *createModuleTab(const ConfigModule &module);
     void applyDialogStyle();
 
     static QList<ConfigModule> buildModules();

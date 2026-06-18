@@ -3,7 +3,6 @@
 #include <QFormLayout>
 #include <QPushButton>
 #include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QScrollArea>
 #include <QFrame>
 #include <QMouseEvent>
@@ -13,14 +12,22 @@
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
                                                   m_dragging(false) {
     setWindowFlags(Qt::FramelessWindowHint | Qt::Dialog);
-    setFixedSize(520, 480);
+    setFixedSize(560, 480);
     setModal(true);
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setAttribute(Qt::WA_Hover, false);
 
     auto *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setContentsMargins(1, 1, 1, 1);
     mainLayout->setSpacing(0);
 
-    auto *titleBar = new QWidget(this);
+    auto *borderFrame = new QFrame(this);
+    borderFrame->setObjectName("settingsBorderFrame");
+    auto *frameLayout = new QVBoxLayout(borderFrame);
+    frameLayout->setContentsMargins(0, 0, 0, 0);
+    frameLayout->setSpacing(0);
+
+    auto *titleBar = new QWidget(borderFrame);
     titleBar->setObjectName("settingsTitleBar");
     titleBar->setFixedHeight(36);
     auto *titleLayout = new QHBoxLayout(titleBar);
@@ -40,14 +47,34 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
     titleLayout->addWidget(closeBtn);
 
-    mainLayout->addWidget(titleBar);
+    frameLayout->addWidget(titleBar);
 
-    m_tabWidget = new QTabWidget(this);
-    m_tabWidget->setDocumentMode(true);
-    buildTabs();
-    mainLayout->addWidget(m_tabWidget, 1);
+    auto *hSeparator = new QFrame(borderFrame);
+    hSeparator->setFrameShape(QFrame::HLine);
+    hSeparator->setStyleSheet("color: #36383d; max-height: 1px;");
+    frameLayout->addWidget(hSeparator);
 
-    auto *btnBar = new QWidget(this);
+    auto *contentLayout = new QHBoxLayout();
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(0);
+
+    m_navList = new QListWidget(borderFrame);
+    m_navList->setObjectName("settingsNavList");
+    m_navList->setFixedWidth(140);
+    m_navList->setSpacing(0);
+    m_navList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_navList->setFocusPolicy(Qt::NoFocus);
+    contentLayout->addWidget(m_navList);
+
+    m_stack = new QStackedWidget(borderFrame);
+    m_stack->setObjectName("settingsStack");
+    contentLayout->addWidget(m_stack, 1);
+
+    frameLayout->addLayout(contentLayout, 1);
+
+    buildNav();
+
+    auto *btnBar = new QWidget(borderFrame);
     btnBar->setObjectName("settingsBtnBar");
     btnBar->setFixedHeight(52);
     auto *btnLayout = new QHBoxLayout(btnBar);
@@ -66,9 +93,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     connect(saveBtn, &QPushButton::clicked, this, &SettingsDialog::onSave);
     btnLayout->addWidget(saveBtn);
 
-    mainLayout->addWidget(btnBar);
+    frameLayout->addWidget(btnBar);
+
+    mainLayout->addWidget(borderFrame);
 
     applyDialogStyle();
+
+    m_navList->setCurrentRow(0);
 }
 
 QSettings *SettingsDialog::settings() {
@@ -78,6 +109,15 @@ QSettings *SettingsDialog::settings() {
 
 QList<ConfigModule> SettingsDialog::buildModules() {
     QList<ConfigModule> modules;
+
+    ConfigModule general;
+    general.name = "常规";
+    general.icon = "⚙";
+    general.fields = {
+        {"general/exitWithoutReminder", "退出不再提醒", "关闭窗口时不再弹出确认提示", ConfigField::Bool, false},
+        {"general/closeAction",         "关闭按钮行为", "点击关闭按钮时的操作",        ConfigField::Choice, 1, {"直接退出", "最小化到托盘"}},
+    };
+    modules.append(general);
 
     ConfigModule ws;
     ws.name = "WebSocket";
@@ -95,12 +135,18 @@ QList<ConfigModule> SettingsDialog::buildModules() {
     return modules;
 }
 
-void SettingsDialog::buildTabs() {
+void SettingsDialog::buildNav() {
     auto modules = buildModules();
     for (const auto &mod : modules) {
-        auto *tab = createModuleTab(mod);
-        m_tabWidget->addTab(tab, mod.icon + " " + mod.name);
+        auto *page = createModuleTab(mod);
+        m_stack->addWidget(page);
+
+        auto *item = new QListWidgetItem(mod.icon + "  " + mod.name);
+        item->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        item->setSizeHint(QSize(140, 40));
+        m_navList->addItem(item);
     }
+    connect(m_navList, &QListWidget::currentRowChanged, m_stack, &QStackedWidget::setCurrentIndex);
 }
 
 QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
@@ -111,9 +157,9 @@ QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
     auto *container = new QWidget();
     container->setStyleSheet("background: transparent;");
     auto *form = new QFormLayout(container);
-    form->setContentsMargins(20, 16, 20, 16);
+    form->setContentsMargins(16, 16, 20, 16);
     form->setSpacing(12);
-    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     for (const auto &field : module.fields) {
         QVariant current = settings()->value(field.key, field.defaultValue);
@@ -121,18 +167,42 @@ QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
         if (field.type == ConfigField::String) {
             auto *edit = new QLineEdit(current.toString());
             edit->setObjectName("settingsField");
-            edit->setToolTip(field.tooltip);
             edit->setMinimumWidth(280);
             edit->setProperty("settingsKey", field.key);
             form->addRow(field.label + ":", edit);
-        } else {
+        } else if (field.type == ConfigField::Int) {
             auto *spin = new QSpinBox();
             spin->setObjectName("settingsField");
-            spin->setToolTip(field.tooltip);
             spin->setRange(0, 999999);
             spin->setValue(current.toInt());
             spin->setProperty("settingsKey", field.key);
             form->addRow(field.label + ":", spin);
+        } else if (field.type == ConfigField::Bool) {
+            auto *check = new QCheckBox();
+            check->setObjectName("settingsCheck");
+            check->setChecked(current.toBool());
+            check->setProperty("settingsKey", field.key);
+            form->addRow(field.label + ":", check);
+        } else if (field.type == ConfigField::Choice) {
+            auto *container = new QWidget();
+            container->setObjectName("settingsRadioGroup");
+            container->setProperty("settingsKey", field.key);
+            auto *radioLayout = new QVBoxLayout(container);
+            radioLayout->setContentsMargins(0, 0, 0, 0);
+            radioLayout->setSpacing(8);
+
+            auto *btnGroup = new QButtonGroup(container);
+            btnGroup->setExclusive(true);
+            int currentIdx = current.toInt();
+
+            for (int i = 0; i < field.choices.size(); ++i) {
+                auto *radio = new QRadioButton(field.choices[i]);
+                radio->setObjectName("settingsRadio");
+                radio->setChecked(i == currentIdx);
+                btnGroup->addButton(radio, i);
+                radioLayout->addWidget(radio);
+            }
+            form->addRow(field.label + ":", container);
         }
     }
 
@@ -142,8 +212,8 @@ QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
 
 void SettingsDialog::onSave() {
     auto *s = settings();
-    for (int t = 0; t < m_tabWidget->count(); ++t) {
-        auto *tab = m_tabWidget->widget(t);
+    for (int t = 0; t < m_stack->count(); ++t) {
+        auto *tab = m_stack->widget(t);
         if (!tab) continue;
         auto *scroll = qobject_cast<QScrollArea *>(tab);
         if (!scroll) continue;
@@ -159,6 +229,13 @@ void SettingsDialog::onSave() {
                 s->setValue(key, edit->text());
             } else if (auto *spin = qobject_cast<QSpinBox *>(w)) {
                 s->setValue(key, spin->value());
+            } else if (auto *check = qobject_cast<QCheckBox *>(w)) {
+                s->setValue(key, check->isChecked());
+            } else if (w->objectName() == "settingsRadioGroup") {
+                auto *btnGroup = w->findChild<QButtonGroup *>();
+                if (btnGroup) {
+                    s->setValue(key, btnGroup->checkedId());
+                }
             }
         }
     }
@@ -190,37 +267,120 @@ QString SettingsDialog::wsRoomId() {
     return settings()->value("ws/roomId", "log").toString();
 }
 
+bool SettingsDialog::exitWithoutReminder() {
+    return settings()->value("general/exitWithoutReminder", false).toBool();
+}
+
+int SettingsDialog::closeAction() {
+    return settings()->value("general/closeAction", 1).toInt();
+}
+
 void SettingsDialog::applyDialogStyle() {
     setStyleSheet(
-        "QDialog, QWidget { background-color: #191a1c; color: #e0e0e0; }"
+        "QDialog { background-color: transparent; }"
+        "#settingsBorderFrame { background-color: #191a1c; border: 1px solid #2d2e2f; border-radius: 12px; }"
 
-        "#settingsBtnBar { background-color: #191a1c; }"
+        "#settingsTitleBar {"
+        "  background-color: #191a1c;"
+        "  border-top-left-radius: 11px; border-top-right-radius: 11px;"
+        "}"
+        "#settingsCloseBtn {"
+        "  background: transparent; border: none;"
+        "  border-radius: 0px; border-top-right-radius: 11px;"
+        "}"
+        "#settingsCloseBtn:hover { background-color: #dc2626; border-radius: 0px; border-top-right-radius: 11px; }"
+        "#settingsBtnBar {"
+        "  background-color: #191a1c;"
+        "  border-bottom-left-radius: 11px; border-bottom-right-radius: 11px;"
+        "}"
 
-        "QTabWidget::pane { border: none; background: #191a1c; top: -1px; }"
-        "QTabBar::tab {"
-        "  background: #222326; color: #6b7280;"
-        "  padding: 8px 20px; margin-right: 1px;"
-        "  border: none;"
-        "  border-top-left-radius: 6px; border-top-right-radius: 6px;"
-        "  font-size: 9pt;"
+        "#settingsNavList {"
+        "  background-color: #191a1c; border: none; outline: none;"
+        "  padding: 0px;"
+        "  border-top-left-radius: 11px; border-bottom-left-radius: 11px;"
         "}"
-        "QTabBar::tab:selected {"
-        "  background: #191a1c; color: #e2e8f0;"
-        "  border-bottom: 2px solid #0ea5e9;"
+        "#settingsNavList::item {"
+        "  color: #94a3b8; padding: 8px 12px 8px 16px; border: none; border-radius: 0px;"
+        "  font-size: 9pt; margin: 0px; outline: none;"
         "}"
-        "QTabBar::tab:hover:!selected { color: #94a3b8; }"
+        "#settingsNavList::item:selected {"
+        "  background-color: #26282c; color: #e2e8f0;"
+        "}"
+        "#settingsNavList::item:hover:!selected {"
+        "  background-color: rgba(38, 40, 44, 128); color: #e2e8f0;"
+        "}"
+        "#settingsNavList QScrollBar { background: transparent; width: 0; }"
+
+        "#settingsStack {"
+        "  background: #191a1c; border: none;"
+        "  border-top-right-radius: 11px; border-bottom-right-radius: 11px;"
+        "}"
 
         "QFormLayout QLabel {"
         "  color: #94a3b8; font-size: 9pt;"
         "}"
 
-        "#settingsField {"
+        "QLineEdit#settingsField {"
         "  background-color: #26282c; color: #e2e8f0;"
         "  border: 1px solid #36383d; border-radius: 4px;"
         "  padding: 6px 10px; font-size: 9pt;"
         "}"
-        "#settingsField:focus { border: 1px solid #0ea5e9; }"
-        "#settingsField:hover { border-color: #475569; }"
+        "QLineEdit#settingsField:focus { border: 1px solid #0ea5e9; }"
+        "QSpinBox#settingsField {"
+        "  background-color: #26282c; color: #e2e8f0;"
+        "  border: 1px solid #36383d; border-radius: 4px;"
+        "  padding: 6px 10px; font-size: 9pt;"
+        "}"
+        "QSpinBox#settingsField:focus { border: 1px solid #0ea5e9; }"
+
+        "#settingsCheck {"
+        "  spacing: 8px;"
+        "}"
+        "#settingsCheck::indicator {"
+        "  width: 16px; height: 16px;"
+        "  border: 1px solid #36383d; border-radius: 3px;"
+        "  background-color: #191a1c;"
+        "}"
+        "#settingsCheck::indicator:checked {"
+        "  background-color: #0ea5e9; border-color: #0ea5e9;"
+        "  image: url(:/icons/check_white.svg);"
+        "}"
+        "#settingsCheck::indicator:hover { border-color: #36383d; }"
+
+        "#settingsRadio {"
+        "  spacing: 8px; color: #e2e8f0; font-size: 9pt;"
+        "}"
+        "#settingsRadio::indicator {"
+        "  width: 16px; height: 16px;"
+        "  border: 1px solid #36383d; border-radius: 8px;"
+        "  background-color: #191a1c;"
+        "}"
+        "#settingsRadio::indicator:checked {"
+        "  background-color: #0ea5e9; border-color: #0ea5e9;"
+        "  image: url(:/icons/check_white.svg);"
+        "}"
+        "#settingsRadio::indicator:hover { border-color: #36383d; }"
+
+        "QComboBox {"
+        "  background-color: #191a1c; color: #e2e8f0;"
+        "  border: 1px solid #36383d; border-radius: 4px;"
+        "  padding: 6px 10px; font-size: 9pt;"
+        "  min-width: 200px;"
+        "}"
+        "QComboBox:hover { border-color: #475569; }"
+        "QComboBox::drop-down { border: none; width: 20px; }"
+        "QComboBox::down-arrow { image: none; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #94a3b8; margin-right: 6px; }"
+        "QComboBox QAbstractItemView {"
+        "  background-color: #191a1c; color: #e2e8f0;"
+        "  border: 1px solid #36383d; selection-background-color: #0ea5e9;"
+        "  padding: 4px;"
+        "}"
+        "QComboBox QAbstractItemView::item {"
+        "  padding: 6px 10px; min-height: 20px;"
+        "}"
+        "QComboBox QAbstractItemView::item:hover {"
+        "  background-color: #36383d; color: #e2e8f0;"
+        "}"
 
         "#settingsSaveBtn {"
         "  background-color: #0ea5e9; color: #ffffff; border: none;"
@@ -234,13 +394,6 @@ void SettingsDialog::applyDialogStyle() {
         "  border-radius: 4px; font-size: 9pt;"
         "}"
         "#settingsCancelBtn:hover { background-color: #4b5563; color: #d1d5db; }"
-
-        "#settingsTitleBar { background-color: #26282c; }"
-        "#settingsCloseBtn {"
-        "  background: transparent; border: none;"
-        "  border-radius: 4px;"
-        "}"
-        "#settingsCloseBtn:hover { background-color: #dc2626; }"
 
         "QScrollArea { background: transparent; border: none; }"
         "QScrollArea > QWidget > QWidget { background: transparent; }"

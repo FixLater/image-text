@@ -7,6 +7,7 @@
     <file>icons/settings.svg</file>
     <file>icons/back.svg</file>
     <file>icons/home.svg</file>
+    <file>icons/check_white.svg</file>
     <file>app_icon.jpg</file>
   </qresource>
 </RCC>
