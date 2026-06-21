@@ -67,8 +67,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->homeBtn->setIcon(QIcon(":/icons/home.svg"));
     ui->homeBtn->setIconSize(QSize(14, 14));
 
-    ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(25, 25));
-    ui->breadcrumbLabel->setContentsMargins(6, 2, 0, 0);
+    ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(20, 20));
+    ui->breadcrumbLabel->setContentsMargins(8, 2, 0, 0);
     ui->breadcrumbLabel->setAlignment(Qt::AlignCenter);
 
     connect(ui->backBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
@@ -77,8 +77,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
     ui->leftBtn1->hide();
     ui->leftBtn2->hide();
-    ui->rightBtn1->hide();
-    ui->rightBtn2->hide();
 
     ui->viewToggleBtn->setFixedSize(24, 24);
     ui->viewToggleBtn->setCursor(Qt::PointingHandCursor);
@@ -280,19 +278,41 @@ void MainWindow::onModuleClicked(const QString &moduleName) {
 }
 
 void MainWindow::setupLeftSidebarIcons() {
-    ui->leftBtn1->setIcon(QIcon(":/icons/home.svg"));
-    ui->leftBtn1->setIconSize(QSize(16, 16));
+    ui->leftBtn1->setIcon(QIcon(":/icons/websocket.svg"));
+    ui->leftBtn1->setIconSize(QSize(18, 18));
     ui->leftBtn1->setToolTip("WebSocket");
+    ui->leftBtn1->setFixedSize(28, 28);
 
-    ui->leftBtn2->setIcon(QIcon(":/icons/settings.svg"));
-    ui->leftBtn2->setIconSize(QSize(16, 16));
+    ui->leftBtn2->setIcon(QIcon(":/icons/translate.svg"));
+    ui->leftBtn2->setIconSize(QSize(18, 18));
     ui->leftBtn2->setToolTip("翻译");
+    ui->leftBtn2->setFixedSize(28, 28);
 
-    connect(ui->leftBtn1, &QPushButton::clicked, this, [this]() {
+    auto updateSidebarSelection = [this](const QString &active) {
+        auto applyStyle = [](QPushButton *btn, bool selected) {
+            if (selected) {
+                btn->setStyleSheet(
+                    "QPushButton { background-color: rgba(14, 165, 233, 0.15); border: none; border-radius: 6px; }"
+                    "QPushButton:hover { background-color: rgba(14, 165, 233, 0.25); }"
+                );
+            } else {
+                btn->setStyleSheet(
+                    "QPushButton { background: transparent; border: none; border-radius: 6px; }"
+                    "QPushButton:hover { background-color: #36383d; }"
+                );
+            }
+        };
+        applyStyle(ui->leftBtn1, active == "websocket");
+        applyStyle(ui->leftBtn2, active == "translate");
+    };
+
+    connect(ui->leftBtn1, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
         navigateTo("websocket");
+        updateSidebarSelection("websocket");
     });
-    connect(ui->leftBtn2, &QPushButton::clicked, this, [this]() {
+    connect(ui->leftBtn2, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
         navigateTo("translate");
+        updateSidebarSelection("translate");
     });
 }
 
@@ -307,12 +327,30 @@ void MainWindow::toggleViewMode() {
         ui->leftBtn2->show();
 
         navigateTo("websocket");
+
+        ui->leftBtn1->setStyleSheet(
+            "QPushButton { background-color: rgba(14, 165, 233, 0.15); border: none; border-radius: 6px; }"
+            "QPushButton:hover { background-color: rgba(14, 165, 233, 0.25); }"
+        );
+        ui->leftBtn2->setStyleSheet(
+            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #36383d; }"
+        );
     } else {
         ui->viewToggleBtn->setText("☰");
         ui->viewToggleBtn->setToolTip("切换到侧边栏视图");
 
         ui->leftBtn1->hide();
         ui->leftBtn2->hide();
+
+        ui->leftBtn1->setStyleSheet(
+            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #36383d; }"
+        );
+        ui->leftBtn2->setStyleSheet(
+            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #36383d; }"
+        );
 
         navigateBack();
     }
@@ -330,9 +368,11 @@ void MainWindow::navigateTo(const QString &moduleName) {
         ui->tabBarWidget->hide();
     }
 
-    ui->backBtn->show();
-    ui->homeBtn->show();
-    ui->breadcrumbSeparator1->show();
+    if (!m_compactMode) {
+        ui->backBtn->show();
+        ui->homeBtn->show();
+        ui->breadcrumbSeparator1->show();
+    }
 }
 
 void MainWindow::navigateBack() {
@@ -359,12 +399,17 @@ void MainWindow::navigateBack() {
 }
 
 void MainWindow::updateBreadcrumb(const QString &path) {
+    if (m_compactMode) {
+        ui->breadcrumbLabel->setText("");
+        ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(20, 20));
+        return;
+    }
     if (path.contains(QStringLiteral("›"))) {
         ui->breadcrumbLabel->setText(path);
         ui->breadcrumbLabel->setPixmap(QPixmap());
     } else {
         ui->breadcrumbLabel->setText("");
-        ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(18, 18));
+        ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(20, 20));
     }
 }
 
@@ -570,9 +615,7 @@ void MainWindow::applyTitleBarStyle() {
         "QWidget { color: #e0e0e0; }"
 
         "#titleBarWidget { background-color: #26282c; }"
-        "#bottomBarWidget { background-color: #26282c; }"
         "#leftBarWidget { background-color: #26282c; }"
-        "#rightBarWidget { background-color: #26282c; }"
         "#tabBarWidget { background-color: #222326; border-radius: 0; }"
 
         "#minimizeBtn, #maximizeBtn, #closeBtn, #settingsBtn {"
@@ -581,15 +624,10 @@ void MainWindow::applyTitleBarStyle() {
         "#minimizeBtn:hover, #maximizeBtn:hover, #settingsBtn:hover { background-color: #36383d; }"
         "#closeBtn:hover { background-color: #dc2626; }"
 
-        "#bottomBtn1, #bottomBtn2 {"
+        "#leftBtn1, #leftBtn2 {"
         "  background: transparent; border: none; border-radius: 4px;"
         "}"
-        "#bottomBtn1:hover, #bottomBtn2:hover { background-color: #36383d; }"
-
-        "#leftBtn1, #leftBtn2, #rightBtn1, #rightBtn2 {"
-        "  background: transparent; border: none; border-radius: 4px;"
-        "}"
-        "#leftBtn1:hover, #leftBtn2:hover, #rightBtn1:hover, #rightBtn2:hover { background-color: #36383d; }"
+        "#leftBtn1:hover, #leftBtn2:hover { background-color: #36383d; }"
 
         "#backBtn, #homeBtn {"
         "  background: transparent; color: #94a3b8; border: none;"
