@@ -7,6 +7,9 @@
 #include <QMap>
 #include <QLabel>
 #include <QTextBrowser>
+#include <QTextEdit>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 struct ModuleCard {
     QString name;
@@ -41,12 +44,27 @@ signals:
     void moduleClicked(const QString &moduleName);
     void cardPrevClicked(const QString &moduleName);
     void cardNextClicked(const QString &moduleName);
+    void fileServerToggled(bool start);
 
 private:
     QGridLayout *m_gridLayout;
     QMap<QString, CardWidgets> m_cardWidgets;
     QMap<QString, int> m_cardTabIndices;
     QWidget *createCard(const ModuleCard &card);
+    QWidget *createTranslateCard();
+    QWidget *createFileServerCard();
+
+    QTextEdit *m_translateInput = nullptr;
+    QLabel *m_translateResult = nullptr;
+    QLabel *m_translateStatus = nullptr;
+    QPushButton *m_translateBtn = nullptr;
+    QNetworkAccessManager *m_networkManager = nullptr;
+
+    QPushButton *m_serverToggleBtn = nullptr;
+    QLabel *m_serverStatusLabel = nullptr;
+    QLabel *m_serverAddressLabel = nullptr;
+
+    void doTranslate(const QString &text);
 };
 
 #endif // DASHBOARDPAGE_H

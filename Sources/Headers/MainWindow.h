@@ -14,6 +14,7 @@ class SettingsDialog;
 class DashboardPage;
 class WebSocketPage;
 class TranslationPage;
+class FileServerPage;
 class StarBackground;
 
 namespace Ui {
@@ -53,6 +54,7 @@ private:
     DashboardPage *m_dashboardPage;
     WebSocketPage *m_websocketPage;
     TranslationPage *m_translationPage;
+    FileServerPage *m_fileServerPage;
     StarBackground *m_starBg;
 
     QSystemTrayIcon *m_trayIcon;

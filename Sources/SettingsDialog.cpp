@@ -132,6 +132,24 @@ QList<ConfigModule> SettingsDialog::buildModules() {
     };
     modules.append(ws);
 
+    ConfigModule translate;
+    translate.name = "翻译";
+    translate.icon = "🌐";
+    translate.fields = {
+        {"translate/sourceLang", "默认源语言", "翻译的源语言", ConfigField::Choice, 0, {"自动检测", "中文", "英文", "日文", "韩文", "法文", "德文", "西班牙文"}},
+        {"translate/targetLang", "默认目标语言", "翻译的目标语言", ConfigField::Choice, 1, {"自动检测", "中文", "英文", "日文", "韩文", "法文", "德文", "西班牙文"}},
+    };
+    modules.append(translate);
+
+    ConfigModule fileServer;
+    fileServer.name = "文件服务器";
+    fileServer.icon = "📁";
+    fileServer.fields = {
+        {"fileserver/port",           "端口号",   "HTTP 文件服务器监听端口", ConfigField::Int, 8080},
+        {"fileserver/allowLan",        "允许局域网访问", "允许局域网内其他设备访问", ConfigField::Bool, true},
+    };
+    modules.append(fileServer);
+
     return modules;
 }
 
@@ -273,6 +291,26 @@ bool SettingsDialog::exitWithoutReminder() {
 
 int SettingsDialog::closeAction() {
     return settings()->value("general/closeAction", 1).toInt();
+}
+
+QString SettingsDialog::translateSourceLang() {
+    int idx = settings()->value("translate/sourceLang", 0).toInt();
+    QStringList langs = {"auto", "ZH", "EN", "JA", "KO", "FR", "DE", "ES"};
+    return (idx >= 0 && idx < langs.size()) ? langs[idx] : "auto";
+}
+
+QString SettingsDialog::translateTargetLang() {
+    int idx = settings()->value("translate/targetLang", 1).toInt();
+    QStringList langs = {"auto", "ZH", "EN", "JA", "KO", "FR", "DE", "ES"};
+    return (idx >= 0 && idx < langs.size()) ? langs[idx] : "EN";
+}
+
+int SettingsDialog::fileServerPort() {
+    return settings()->value("fileserver/port", 8080).toInt();
+}
+
+bool SettingsDialog::fileServerAllowLan() {
+    return settings()->value("fileserver/allowLan", true).toBool();
 }
 
 void SettingsDialog::applyDialogStyle() {

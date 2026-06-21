@@ -1,4 +1,5 @@
 #include "TranslationPage.h"
+#include "SettingsDialog.h"
 
 #include <algorithm>
 
@@ -143,6 +144,27 @@ void TranslationPage::setupUI()
     m_sourceLangCombo = new QComboBox(m_inputCard);
     m_sourceLangCombo->addItems({"英汉互译", "中 → 英", "英 → 中", "中 → 日", "日 → 中", "中 → 韩", "韩 → 中"});
     m_sourceLangCombo->setFixedSize(130, 30);
+
+    QString srcLang = SettingsDialog::translateSourceLang();
+    QString tgtLang = SettingsDialog::translateTargetLang();
+    if (srcLang == "auto" || tgtLang == "auto") {
+        m_sourceLangCombo->setCurrentIndex(0);
+    } else if (srcLang == "ZH" && tgtLang == "EN") {
+        m_sourceLangCombo->setCurrentIndex(1);
+    } else if (srcLang == "EN" && tgtLang == "ZH") {
+        m_sourceLangCombo->setCurrentIndex(2);
+    } else if (srcLang == "ZH" && tgtLang == "JA") {
+        m_sourceLangCombo->setCurrentIndex(3);
+    } else if (srcLang == "JA" && tgtLang == "ZH") {
+        m_sourceLangCombo->setCurrentIndex(4);
+    } else if (srcLang == "ZH" && tgtLang == "KO") {
+        m_sourceLangCombo->setCurrentIndex(5);
+    } else if (srcLang == "KO" && tgtLang == "ZH") {
+        m_sourceLangCombo->setCurrentIndex(6);
+    } else {
+        m_sourceLangCombo->setCurrentIndex(0);
+    }
+
     m_sourceLangCombo->setStyleSheet(
         "QComboBox {"
         "  background: rgba(10, 18, 38, 184); color: #eef4ff; border: 1px solid rgba(160, 184, 238, 77); border-radius: 8px;"

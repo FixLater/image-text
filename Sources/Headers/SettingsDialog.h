@@ -48,6 +48,11 @@ public:
     static bool exitWithoutReminder();
     static int closeAction();
 
+    static QString translateSourceLang();
+    static QString translateTargetLang();
+    static int fileServerPort();
+    static bool fileServerAllowLan();
+
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

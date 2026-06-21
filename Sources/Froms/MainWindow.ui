@@ -197,13 +197,20 @@
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QPushButton" name="leftBtn2">
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
+           <item>
+            <widget class="QPushButton" name="leftBtn2">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="leftBtn3">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
           <item>
            <spacer name="leftSpacer">
             <property name="orientation">

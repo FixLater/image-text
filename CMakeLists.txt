@@ -24,6 +24,12 @@ set(SOURCES
     Sources/TableItemDelegate.cpp
     Sources/SettingsDialog.cpp
     Sources/TranslationPage.cpp
+    Sources/FileServerPage.cpp
+)
+
+set(UI_FILES
+    Sources/Froms/MainWindow.ui
+    Sources/Froms/WebSocketPage.ui
 )
 
 set(HEADERS
@@ -36,18 +42,7 @@ set(HEADERS
     Sources/Headers/TableItemDelegate.h
     Sources/Headers/SettingsDialog.h
     Sources/Headers/TranslationPage.h
-)
-
-set(HEADERS
-    Sources/Headers/MainWindow.h
-    Sources/Headers/DashboardPage.h
-    Sources/Headers/StarBackground.h
-    Sources/Headers/ChatLogWidget.h
-    Sources/Headers/WebSocketPage.h
-    Sources/Headers/QtWebSocketClient.h
-    Sources/Headers/TableItemDelegate.h
-    Sources/Headers/SettingsDialog.h
-    Sources/Headers/TranslationPage.h
+    Sources/Headers/FileServerPage.h
 )
 
 set(UI_FILES

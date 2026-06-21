@@ -1,9 +1,13 @@
 #include "DashboardPage.h"
+#include "SettingsDialog.h"
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
 #include <QMouseEvent>
 #include <QTextOption>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkRequest>
 
 DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     auto *mainLayout = new QVBoxLayout(this);
@@ -19,19 +23,15 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     wsCard.icon = "⚡";
     wsCard.title = "WebSocket";
     wsCard.description = "连接 WebSocket 服务器，实时发送消息和文件";
-
     m_gridLayout->addWidget(createCard(wsCard), 0, 0);
 
-    ModuleCard translateCard;
-    translateCard.name = "translate";
-    translateCard.icon = "🌐";
-    translateCard.title = "翻译";
-    translateCard.description = "使用 DeepL 进行多语言文本翻译";
-
-    m_gridLayout->addWidget(createCard(translateCard), 0, 1);
+    m_gridLayout->addWidget(createTranslateCard(), 0, 1);
+    m_gridLayout->addWidget(createFileServerCard(), 0, 2);
 
     mainLayout->addLayout(m_gridLayout);
     mainLayout->addStretch(1);
+
+    m_networkManager = new QNetworkAccessManager(this);
 }
 
 bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
@@ -39,19 +39,32 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
             auto *cardWidget = qobject_cast<QWidget *>(obj);
-            if (cardWidget && cardWidget->objectName() == "moduleCard") {
-                auto *clickedChild = cardWidget->childAt(mouseEvent->pos());
-                if (clickedChild && clickedChild->objectName() == "prevBtn") return false;
-                if (clickedChild && clickedChild->objectName() == "nextBtn") return false;
+            if (!cardWidget) return false;
 
-                int clickY = mouseEvent->pos().y();
-                if (clickY > 36) return false;
+            auto *clickedChild = cardWidget->childAt(mouseEvent->pos());
+            if (!clickedChild) return false;
 
-                for (auto it = m_cardWidgets.constBegin(); it != m_cardWidgets.constEnd(); ++it) {
-                    if (it.value().logPreview && it.value().logPreview->parentWidget() == cardWidget) {
-                        emit moduleClicked(it.key());
-                        return false;
+            if (clickedChild->objectName() == "prevBtn" || clickedChild->objectName() == "nextBtn")
+                return false;
+
+            int clickY = mouseEvent->pos().y();
+            if (clickY <= 36) {
+                QString name;
+                if (cardWidget->objectName() == "moduleCard") {
+                    for (auto it = m_cardWidgets.constBegin(); it != m_cardWidgets.constEnd(); ++it) {
+                        if (it.value().logPreview && it.value().logPreview->parentWidget() == cardWidget) {
+                            name = it.key();
+                            break;
+                        }
                     }
+                } else if (cardWidget->objectName() == "translateCard") {
+                    name = "translate";
+                } else if (cardWidget->objectName() == "fileServerCard") {
+                    name = "fileserver";
+                }
+                if (!name.isEmpty()) {
+                    emit moduleClicked(name);
+                    return false;
                 }
             }
         }
@@ -60,6 +73,36 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
 }
 
 void DashboardPage::updateCardStatus(const QString &moduleName, bool connected) {
+    if (moduleName == "fileserver") {
+        if (connected) {
+            m_serverStatusLabel->setStyleSheet(
+                "color: #34d399; font-size: 12pt; background: transparent; border: none;"
+            );
+            m_serverToggleBtn->setText("停止");
+            m_serverToggleBtn->setStyleSheet(
+                "QPushButton { background-color: #dc2626; color: white; border: none; border-radius: 4px; font-size: 9pt; padding: 4px 12px; }"
+                "QPushButton:hover { background-color: #ef4444; }"
+            );
+            m_serverAddressLabel->setText("运行中");
+            m_serverAddressLabel->setStyleSheet(
+                "color: #34d399; font-size: 8pt; background: transparent; border: none;"
+            );
+        } else {
+            m_serverStatusLabel->setStyleSheet(
+                "color: #64748b; font-size: 12pt; background: transparent; border: none;"
+            );
+            m_serverToggleBtn->setText("启动");
+            m_serverToggleBtn->setStyleSheet(
+                "QPushButton { background-color: #0ea5e9; color: white; border: none; border-radius: 4px; font-size: 9pt; padding: 4px 12px; }"
+                "QPushButton:hover { background-color: #38bdf8; }"
+            );
+            m_serverAddressLabel->setText("未运行");
+            m_serverAddressLabel->setStyleSheet(
+                "color: #475569; font-size: 8pt; background: transparent; border: none;"
+            );
+        }
+        return;
+    }
     if (!m_cardWidgets.contains(moduleName)) return;
     auto &widgets = m_cardWidgets[moduleName];
     if (connected) {
@@ -159,7 +202,6 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     topRow->addWidget(statusLabel);
 
     mainLayout->addLayout(topRow);
-
     mainLayout->addSpacing(6);
 
     auto *logPreview = new QTextBrowser();
@@ -176,10 +218,6 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
         "  font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif;"
         "  font-size: 7pt; padding: 4px;"
         "}"
-    );
-    logPreview->document()->setDefaultStyleSheet(
-        ".ts-divider { color: #555; font-size: 6pt; }"
-        ".link { color: #38bdf8; text-decoration: underline; }"
     );
     logPreview->document()->setDefaultStyleSheet(
         ".timestamp { color: #334155; }"
@@ -238,10 +276,212 @@ QWidget *DashboardPage::createCard(const ModuleCard &card) {
     connect(prevBtn, &QPushButton::clicked, this, [this, card]() {
         emit cardPrevClicked(card.name);
     });
-
     connect(nextBtn, &QPushButton::clicked, this, [this, card]() {
         emit cardNextClicked(card.name);
     });
 
     return cardWidget;
+}
+
+QWidget *DashboardPage::createTranslateCard() {
+    auto *cardWidget = new QWidget();
+    cardWidget->setFixedSize(280, 180);
+    cardWidget->setObjectName("translateCard");
+    cardWidget->setCursor(Qt::PointingHandCursor);
+
+    auto *mainLayout = new QVBoxLayout(cardWidget);
+    mainLayout->setContentsMargins(16, 10, 16, 10);
+    mainLayout->setSpacing(4);
+
+    auto *topRow = new QHBoxLayout();
+    topRow->setSpacing(6);
+
+    auto *titleLabel = new QLabel("翻译");
+    titleLabel->setStyleSheet(
+        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;"
+    );
+    topRow->addWidget(titleLabel);
+    topRow->addStretch(1);
+
+    m_translateStatus = new QLabel();
+    m_translateStatus->setStyleSheet(
+        "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
+        "min-height: 8px; max-height: 8px; border: none;"
+    );
+    topRow->addWidget(m_translateStatus);
+
+    mainLayout->addLayout(topRow);
+
+    m_translateInput = new QTextEdit();
+    m_translateInput->setPlaceholderText("输入文本...");
+    m_translateInput->setMaximumHeight(65);
+    m_translateInput->setStyleSheet(
+        "QTextEdit { background-color: #1a1b1e; color: #e2e8f0; border: 1px solid #36383d;"
+        "  border-radius: 4px; font-size: 8pt; padding: 4px;"
+        "  font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; }"
+        "QTextEdit:focus { border-color: #0ea5e9; }"
+    );
+    mainLayout->addWidget(m_translateInput);
+
+    auto *btnRow = new QHBoxLayout();
+    btnRow->setContentsMargins(0, 0, 0, 0);
+
+    m_translateBtn = new QPushButton("翻译");
+    m_translateBtn->setCursor(Qt::PointingHandCursor);
+    m_translateBtn->setStyleSheet(
+        "QPushButton { background-color: #0ea5e9; color: white; border: none; border-radius: 4px;"
+        "  font-size: 8pt; padding: 3px 12px; }"
+        "QPushButton:hover { background-color: #38bdf8; }"
+        "QPushButton:disabled { background-color: #334155; color: #64748b; }"
+    );
+    connect(m_translateBtn, &QPushButton::clicked, this, [this]() {
+        QString text = m_translateInput->toPlainText().trimmed();
+        if (!text.isEmpty()) doTranslate(text);
+    });
+    btnRow->addStretch(1);
+    btnRow->addWidget(m_translateBtn);
+    mainLayout->addLayout(btnRow);
+
+    m_translateResult = new QLabel("");
+    m_translateResult->setWordWrap(true);
+    m_translateResult->setMaximumHeight(40);
+    m_translateResult->setStyleSheet(
+        "color: #94a3b8; font-size: 8pt; background: transparent; border: none;"
+        "font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif;"
+    );
+    mainLayout->addWidget(m_translateResult);
+    mainLayout->addStretch(1);
+
+    cardWidget->setStyleSheet(
+        "#translateCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
+        "#translateCard:hover { background-color: rgba(42, 44, 48, 0.5); border-color: #0ea5e9; }"
+    );
+
+    auto *shadow = new QGraphicsDropShadowEffect();
+    shadow->setBlurRadius(20);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 60));
+    cardWidget->setGraphicsEffect(shadow);
+    cardWidget->installEventFilter(this);
+
+    return cardWidget;
+}
+
+QWidget *DashboardPage::createFileServerCard() {
+    auto *cardWidget = new QWidget();
+    cardWidget->setFixedSize(280, 180);
+    cardWidget->setObjectName("fileServerCard");
+    cardWidget->setCursor(Qt::PointingHandCursor);
+
+    auto *mainLayout = new QVBoxLayout(cardWidget);
+    mainLayout->setContentsMargins(16, 10, 16, 10);
+    mainLayout->setSpacing(4);
+
+    auto *topRow = new QHBoxLayout();
+    topRow->setSpacing(6);
+
+    auto *titleLabel = new QLabel("文件服务器");
+    titleLabel->setStyleSheet(
+        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;"
+    );
+    topRow->addWidget(titleLabel);
+    topRow->addStretch(1);
+
+    m_serverStatusLabel = new QLabel("●");
+    m_serverStatusLabel->setStyleSheet(
+        "color: #64748b; font-size: 12pt; background: transparent; border: none;"
+    );
+    topRow->addWidget(m_serverStatusLabel);
+
+    mainLayout->addLayout(topRow);
+    mainLayout->addSpacing(4);
+
+    auto *descLabel = new QLabel("HTTP 文件服务器\n局域网内访问文件列表");
+    descLabel->setStyleSheet(
+        "color: #64748b; font-size: 8pt; background: transparent; border: none;"
+    );
+    mainLayout->addWidget(descLabel);
+
+    mainLayout->addStretch(1);
+
+    auto *bottomRow = new QHBoxLayout();
+    bottomRow->setContentsMargins(0, 0, 0, 0);
+
+    m_serverAddressLabel = new QLabel("未运行");
+    m_serverAddressLabel->setStyleSheet(
+        "color: #475569; font-size: 8pt; background: transparent; border: none;"
+    );
+    bottomRow->addWidget(m_serverAddressLabel);
+    bottomRow->addStretch(1);
+
+    m_serverToggleBtn = new QPushButton("启动");
+    m_serverToggleBtn->setCursor(Qt::PointingHandCursor);
+    m_serverToggleBtn->setStyleSheet(
+        "QPushButton { background-color: #0ea5e9; color: white; border: none; border-radius: 4px;"
+        "  font-size: 8pt; padding: 4px 14px; }"
+        "QPushButton:hover { background-color: #38bdf8; }"
+    );
+    connect(m_serverToggleBtn, &QPushButton::clicked, this, [this]() {
+        bool isRunning = m_serverToggleBtn->text() == "停止";
+        emit fileServerToggled(!isRunning);
+    });
+    bottomRow->addWidget(m_serverToggleBtn);
+
+    mainLayout->addLayout(bottomRow);
+
+    cardWidget->setStyleSheet(
+        "#fileServerCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
+        "#fileServerCard:hover { background-color: rgba(42, 44, 48, 0.5); border-color: #0ea5e9; }"
+    );
+
+    auto *shadow = new QGraphicsDropShadowEffect();
+    shadow->setBlurRadius(20);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 60));
+    cardWidget->setGraphicsEffect(shadow);
+    cardWidget->installEventFilter(this);
+
+    return cardWidget;
+}
+
+void DashboardPage::doTranslate(const QString &text) {
+    m_translateBtn->setEnabled(false);
+    m_translateStatus->setStyleSheet(
+        "color: #fbbf24; border-radius: 4px; min-width: 8px; max-width: 8px;"
+        "min-height: 8px; max-height: 8px; border: none;"
+    );
+    m_translateResult->setText("翻译中...");
+
+    QJsonObject body;
+    body["text"] = text;
+    body["source_lang"] = SettingsDialog::translateSourceLang();
+    body["target_lang"] = SettingsDialog::translateTargetLang();
+
+    QNetworkRequest request(QUrl("https://api.deeplx.org/0a8q3Z6SKlnxZZUKcvdky_1fVTVs1EBlOTwm4qtUi9Q/translate"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QNetworkReply *reply = m_networkManager->post(request, QJsonDocument(body).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply, text]() {
+        reply->deleteLater();
+        m_translateBtn->setEnabled(true);
+        m_translateStatus->setStyleSheet(
+            "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
+            "min-height: 8px; max-height: 8px; border: none;"
+        );
+
+        if (reply->error() != QNetworkReply::NoError) {
+            m_translateResult->setText("请求失败: " + reply->errorString());
+            return;
+        }
+
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonObject obj = doc.object();
+        QString translated = obj["data"].toString();
+
+        if (!translated.isEmpty()) {
+            m_translateResult->setText(translated);
+        } else {
+            m_translateResult->setText("翻译结果为空");
+        }
+    });
 }

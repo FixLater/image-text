@@ -3,9 +3,9 @@
 #include "DashboardPage.h"
 #include "WebSocketPage.h"
 #include "TranslationPage.h"
+#include "FileServerPage.h"
 #include "SettingsDialog.h"
 #include "StarBackground.h"
-#include "TranslationPage.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMenu>
@@ -228,10 +228,12 @@ void MainWindow::initPages() {
     m_dashboardPage = new DashboardPage(this);
     m_websocketPage = new WebSocketPage(this);
     m_translationPage = new TranslationPage(this);
+    m_fileServerPage = new FileServerPage(this);
 
     ui->stackedWidget->addWidget(m_dashboardPage);
     ui->stackedWidget->addWidget(m_websocketPage);
     ui->stackedWidget->addWidget(m_translationPage);
+    ui->stackedWidget->addWidget(m_fileServerPage);
     ui->stackedWidget->setCurrentIndex(0);
 
     connect(m_dashboardPage, &DashboardPage::moduleClicked, this, &MainWindow::onModuleClicked);
@@ -261,6 +263,12 @@ void MainWindow::initPages() {
             }
         }
     });
+    connect(m_fileServerPage, &FileServerPage::statusChanged, this, [this](bool running) {
+        m_dashboardPage->updateCardStatus("fileserver", running);
+    });
+    connect(m_dashboardPage, &DashboardPage::fileServerToggled, this, [this](bool start) {
+        m_fileServerPage->onToggleServer();
+    });
 
     m_websocketPage->connectToCurrentTab();
 
@@ -274,6 +282,8 @@ void MainWindow::onModuleClicked(const QString &moduleName) {
         navigateTo("websocket");
     } else if (moduleName == "translate") {
         navigateTo("translate");
+    } else if (moduleName == "fileserver") {
+        navigateTo("fileserver");
     }
 }
 
@@ -287,6 +297,12 @@ void MainWindow::setupLeftSidebarIcons() {
     ui->leftBtn2->setIconSize(QSize(18, 18));
     ui->leftBtn2->setToolTip("翻译");
     ui->leftBtn2->setFixedSize(28, 28);
+
+    ui->leftBtn3->setIcon(QIcon(":/icons/fileserver.svg"));
+    ui->leftBtn3->setIconSize(QSize(18, 18));
+    ui->leftBtn3->setToolTip("文件服务器");
+    ui->leftBtn3->setFixedSize(28, 28);
+    ui->leftBtn3->hide();
 
     auto updateSidebarSelection = [this](const QString &active) {
         auto applyStyle = [](QPushButton *btn, bool selected) {
@@ -304,6 +320,7 @@ void MainWindow::setupLeftSidebarIcons() {
         };
         applyStyle(ui->leftBtn1, active == "websocket");
         applyStyle(ui->leftBtn2, active == "translate");
+        applyStyle(ui->leftBtn3, active == "fileserver");
     };
 
     connect(ui->leftBtn1, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
@@ -313,6 +330,10 @@ void MainWindow::setupLeftSidebarIcons() {
     connect(ui->leftBtn2, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
         navigateTo("translate");
         updateSidebarSelection("translate");
+    });
+    connect(ui->leftBtn3, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
+        navigateTo("fileserver");
+        updateSidebarSelection("fileserver");
     });
 }
 
@@ -325,6 +346,7 @@ void MainWindow::toggleViewMode() {
 
         ui->leftBtn1->show();
         ui->leftBtn2->show();
+        ui->leftBtn3->show();
 
         navigateTo("websocket");
 
@@ -336,18 +358,27 @@ void MainWindow::toggleViewMode() {
             "QPushButton { background: transparent; border: none; border-radius: 6px; }"
             "QPushButton:hover { background-color: #36383d; }"
         );
+        ui->leftBtn3->setStyleSheet(
+            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #36383d; }"
+        );
     } else {
         ui->viewToggleBtn->setText("☰");
         ui->viewToggleBtn->setToolTip("切换到侧边栏视图");
 
         ui->leftBtn1->hide();
         ui->leftBtn2->hide();
+        ui->leftBtn3->hide();
 
         ui->leftBtn1->setStyleSheet(
             "QPushButton { background: transparent; border: none; border-radius: 6px; }"
             "QPushButton:hover { background-color: #36383d; }"
         );
         ui->leftBtn2->setStyleSheet(
+            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #36383d; }"
+        );
+        ui->leftBtn3->setStyleSheet(
             "QPushButton { background: transparent; border: none; border-radius: 6px; }"
             "QPushButton:hover { background-color: #36383d; }"
         );
@@ -365,6 +396,10 @@ void MainWindow::navigateTo(const QString &moduleName) {
     } else if (moduleName == "translate") {
         ui->stackedWidget->setCurrentWidget(m_translationPage);
         updateBreadcrumb("仪表盘 › 翻译");
+        ui->tabBarWidget->hide();
+    } else if (moduleName == "fileserver") {
+        ui->stackedWidget->setCurrentWidget(m_fileServerPage);
+        updateBreadcrumb("仪表盘 › 文件服务器");
         ui->tabBarWidget->hide();
     }
 

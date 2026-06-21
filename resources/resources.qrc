@@ -10,6 +10,7 @@
     <file>icons/check_white.svg</file>
     <file>icons/websocket.svg</file>
     <file>icons/translate.svg</file>
+    <file>icons/fileserver.svg</file>
     <file>app_icon.jpg</file>
   </qresource>
 </RCC>
