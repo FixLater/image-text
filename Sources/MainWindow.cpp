@@ -67,12 +67,30 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->homeBtn->setIcon(QIcon(":/icons/home.svg"));
     ui->homeBtn->setIconSize(QSize(14, 14));
 
+    ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(25, 25));
+    ui->breadcrumbLabel->setContentsMargins(6, 2, 0, 0);
+    ui->breadcrumbLabel->setAlignment(Qt::AlignCenter);
+
     connect(ui->backBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
     connect(ui->homeBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
     connect(ui->tabAdd, &QPushButton::clicked, this, &MainWindow::onTabAddClicked);
 
+    ui->leftBtn1->hide();
+    ui->leftBtn2->hide();
+    ui->rightBtn1->hide();
+    ui->rightBtn2->hide();
+
+    ui->viewToggleBtn->setFixedSize(24, 24);
+    ui->viewToggleBtn->setCursor(Qt::PointingHandCursor);
+    ui->viewToggleBtn->setStyleSheet(
+        "QPushButton { background: transparent; color: #94a3b8; border: none; border-radius: 4px; font-size: 14px; }"
+        "QPushButton:hover { background-color: #36383d; color: #e2e8f0; }"
+    );
+    connect(ui->viewToggleBtn, &QPushButton::clicked, this, &MainWindow::toggleViewMode);
+
     applyTitleBarStyle();
     initPages();
+    setupLeftSidebarIcons();
 
     ui->tabBarWidget->hide();
 }
@@ -261,6 +279,45 @@ void MainWindow::onModuleClicked(const QString &moduleName) {
     }
 }
 
+void MainWindow::setupLeftSidebarIcons() {
+    ui->leftBtn1->setIcon(QIcon(":/icons/home.svg"));
+    ui->leftBtn1->setIconSize(QSize(16, 16));
+    ui->leftBtn1->setToolTip("WebSocket");
+
+    ui->leftBtn2->setIcon(QIcon(":/icons/settings.svg"));
+    ui->leftBtn2->setIconSize(QSize(16, 16));
+    ui->leftBtn2->setToolTip("翻译");
+
+    connect(ui->leftBtn1, &QPushButton::clicked, this, [this]() {
+        navigateTo("websocket");
+    });
+    connect(ui->leftBtn2, &QPushButton::clicked, this, [this]() {
+        navigateTo("translate");
+    });
+}
+
+void MainWindow::toggleViewMode() {
+    m_compactMode = !m_compactMode;
+
+    if (m_compactMode) {
+        ui->viewToggleBtn->setText("☰");
+        ui->viewToggleBtn->setToolTip("切换到磁吸卡片视图");
+
+        ui->leftBtn1->show();
+        ui->leftBtn2->show();
+
+        navigateTo("websocket");
+    } else {
+        ui->viewToggleBtn->setText("☰");
+        ui->viewToggleBtn->setToolTip("切换到侧边栏视图");
+
+        ui->leftBtn1->hide();
+        ui->leftBtn2->hide();
+
+        navigateBack();
+    }
+}
+
 void MainWindow::navigateTo(const QString &moduleName) {
     if (moduleName == "websocket") {
         ui->stackedWidget->setCurrentWidget(m_websocketPage);
@@ -302,7 +359,13 @@ void MainWindow::navigateBack() {
 }
 
 void MainWindow::updateBreadcrumb(const QString &path) {
-    ui->breadcrumbLabel->setText(path);
+    if (path.contains(QStringLiteral("›"))) {
+        ui->breadcrumbLabel->setText(path);
+        ui->breadcrumbLabel->setPixmap(QPixmap());
+    } else {
+        ui->breadcrumbLabel->setText("");
+        ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(18, 18));
+    }
 }
 
 void MainWindow::showTabBar(bool show) {
@@ -508,6 +571,8 @@ void MainWindow::applyTitleBarStyle() {
 
         "#titleBarWidget { background-color: #26282c; }"
         "#bottomBarWidget { background-color: #26282c; }"
+        "#leftBarWidget { background-color: #26282c; }"
+        "#rightBarWidget { background-color: #26282c; }"
         "#tabBarWidget { background-color: #222326; border-radius: 0; }"
 
         "#minimizeBtn, #maximizeBtn, #closeBtn, #settingsBtn {"
@@ -520,6 +585,11 @@ void MainWindow::applyTitleBarStyle() {
         "  background: transparent; border: none; border-radius: 4px;"
         "}"
         "#bottomBtn1:hover, #bottomBtn2:hover { background-color: #36383d; }"
+
+        "#leftBtn1, #leftBtn2, #rightBtn1, #rightBtn2 {"
+        "  background: transparent; border: none; border-radius: 4px;"
+        "}"
+        "#leftBtn1:hover, #leftBtn2:hover, #rightBtn1:hover, #rightBtn2:hover { background-color: #36383d; }"
 
         "#backBtn, #homeBtn {"
         "  background: transparent; color: #94a3b8; border: none;"

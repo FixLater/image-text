@@ -74,6 +74,10 @@ private:
     void showTabBar(bool show);
     void updateDashboardTabInfo();
     int m_activeTabIndex = -1;
+    bool m_compactMode = false;
+
+    void toggleViewMode();
+    void setupLeftSidebarIcons();
 };
 
 #endif // MAINWINDOW_H
