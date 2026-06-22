@@ -237,6 +237,10 @@ void MainWindow::initPages() {
     ui->stackedWidget->addWidget(m_fileServerPage);
     ui->stackedWidget->setCurrentIndex(0);
 
+    ui->stackedWidget->setStyleSheet("QStackedWidget { background: transparent; }");
+    ui->centerContentWidget->setStyleSheet("#centerContentWidget { background: transparent; }");
+    ui->middleWidget->setStyleSheet("#middleWidget { background: transparent; }");
+
     connect(m_dashboardPage, &DashboardPage::moduleClicked, this, &MainWindow::onModuleClicked);
     connect(m_websocketPage, &WebSocketPage::tabsChanged, this, &MainWindow::rebuildTabBar);
     connect(m_websocketPage, &WebSocketPage::statusChanged, this, [this](bool connected) {
@@ -265,7 +269,11 @@ void MainWindow::initPages() {
         }
     });
     connect(m_fileServerPage, &FileServerPage::statusChanged, this, [this](bool running) {
-        m_dashboardPage->updateCardStatus("fileserver", running);
+        QString addr;
+        if (running) {
+            addr = QString("http://%1:%2").arg(m_fileServerPage->serverAddress()).arg(m_fileServerPage->port());
+        }
+        m_dashboardPage->updateCardStatus("fileserver", running, addr);
     });
     connect(m_dashboardPage, &DashboardPage::fileServerToggled, this, [this](bool start) {
         m_fileServerPage->onToggleServer();

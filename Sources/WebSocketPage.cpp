@@ -18,11 +18,18 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include "TableItemDelegate.h"
+#include "StarBackground.h"
 
 WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
                                                 ui(new Ui::WebSocketPage),
                                                 m_contextRow(-1) {
     ui->setupUi(this);
+    setObjectName("WebSocketPage");
+
+    m_starBg = new StarBackground(this);
+    m_starBg->lower();
+    m_starBg->resize(size());
+
     applyApiFoxStyle();
 
     m_chatLog = new ChatLogWidget(this);
@@ -291,7 +298,7 @@ void WebSocketPage::updateUIState() {
 void WebSocketPage::applyApiFoxStyle() {
     setStyleSheet(
         "* { font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif; }"
-        "QWidget { background-color: #191a1c; color: #e0e0e0; }"
+        "QWidget { background: transparent; }"
 
         "#connectButton {"
         "  background-color: #0ea5e9; color: #ffffff; border: none;"
@@ -302,15 +309,15 @@ void WebSocketPage::applyApiFoxStyle() {
         "#connectButton:disabled { background-color: #36383d; color: #555; }"
 
         "QLineEdit {"
-        "  background-color: #1f2023; color: #e2e8f0;"
+        "  background: transparent; color: #e2e8f0;"
         "  border: 1px solid #36383d; border-radius: 6px;"
         "  padding: 8px 12px; font-size: 10pt; selection-background-color: #0ea5e9;"
         "}"
         "QLineEdit:focus { border: 1px solid #0ea5e9; }"
-        "QLineEdit:disabled { background-color: #26282c; color: #555; border: 1px solid #26282c; }"
+        "QLineEdit:disabled { background: transparent; color: #555; border: 1px solid #26282c; }"
 
         "QTextEdit {"
-        "  background-color: #1f2023; color: #e2e8f0;"
+        "  background: transparent; color: #e2e8f0;"
         "  border: 1px solid #36383d; border-radius: 6px;"
         "  padding: 8px; font-size: 10pt; selection-background-color: #0ea5e9;"
         "}"
@@ -356,7 +363,7 @@ void WebSocketPage::applyApiFoxStyle() {
         "#sendButton:pressed { background-color: #0284c7; }"
         "#sendButton:disabled { background-color: #36383d; color: #555; }"
 
-        "#requestBar { background-color: #191a1c; }"
+        "#requestBar { background: transparent; }"
         "#statusLabel { font-size: 9pt; }"
 
         "QSplitter::handle { background: transparent; }"
@@ -770,4 +777,11 @@ bool WebSocketPage::eventFilter(QObject *obj, QEvent *event) {
         }
     }
     return QWidget::eventFilter(obj, event);
+}
+
+void WebSocketPage::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    if (m_starBg) {
+        m_starBg->resize(size());
+    }
 }

@@ -32,7 +32,7 @@ class DashboardPage : public QWidget {
 public:
     explicit DashboardPage(QWidget *parent = nullptr);
 
-    void updateCardStatus(const QString &moduleName, bool connected);
+    void updateCardStatus(const QString &moduleName, bool connected, const QString &address = QString());
     void appendCardLog(const QString &moduleName, int tabIndex, const QString &html);
     void updateCardTabInfo(const QString &moduleName, int current, int total);
     void setCardLogFromTab(const QString &moduleName, const QString &html);

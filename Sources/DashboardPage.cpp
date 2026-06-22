@@ -8,6 +8,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkRequest>
+#include <QDesktopServices>
+#include <QUrl>
 
 DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     auto *mainLayout = new QVBoxLayout(this);
@@ -72,7 +74,7 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
     return QWidget::eventFilter(obj, event);
 }
 
-void DashboardPage::updateCardStatus(const QString &moduleName, bool connected) {
+void DashboardPage::updateCardStatus(const QString &moduleName, bool connected, const QString &address) {
     if (moduleName == "fileserver") {
         if (connected) {
             m_serverStatusLabel->setStyleSheet(
@@ -83,10 +85,12 @@ void DashboardPage::updateCardStatus(const QString &moduleName, bool connected) 
                 "QPushButton { background-color: #dc2626; color: white; border: none; border-radius: 4px; font-size: 9pt; padding: 4px 12px; }"
                 "QPushButton:hover { background-color: #ef4444; }"
             );
-            m_serverAddressLabel->setText("运行中");
+            m_serverAddressLabel->setText(QString("<a href=\"%1\" style=\"color: #0ea5e9; text-decoration: underline;\">%1</a>").arg(address));
             m_serverAddressLabel->setStyleSheet(
-                "color: #34d399; font-size: 8pt; background: transparent; border: none;"
+                "font-size: 8pt; background: transparent; border: none;"
             );
+            m_serverAddressLabel->setOpenExternalLinks(true);
+            m_serverAddressLabel->setCursor(Qt::PointingHandCursor);
         } else {
             m_serverStatusLabel->setStyleSheet(
                 "color: #64748b; font-size: 12pt; background: transparent; border: none;"
@@ -411,6 +415,9 @@ QWidget *DashboardPage::createFileServerCard() {
     m_serverAddressLabel->setStyleSheet(
         "color: #475569; font-size: 8pt; background: transparent; border: none;"
     );
+    connect(m_serverAddressLabel, &QLabel::linkActivated, this, [](const QString &link) {
+        QDesktopServices::openUrl(QUrl(link));
+    });
     bottomRow->addWidget(m_serverAddressLabel);
     bottomRow->addStretch(1);
 

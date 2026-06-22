@@ -272,7 +272,7 @@ void ChatBubble::clearSelection() {
 ChatLogWidget::ChatLogWidget(QWidget *parent)
     : QScrollArea(parent) {
     setStyleSheet(
-        "QScrollArea { background-color: #1a1b1e; border: 1px solid #36383d; border-radius: 6px; }"
+        "QScrollArea { background: transparent; border: 1px solid #36383d; border-radius: 6px; }"
         "QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
         "QScrollBar::handle:vertical { background-color: #0ea5e9; border-radius: 3px; min-height: 20px; }"
         "QScrollBar::handle:vertical:hover { background-color: #38bdf8; }"
@@ -322,7 +322,7 @@ bool ChatLogWidget::eventFilter(QObject *obj, QEvent *event) {
         }
         if (event->type() == QEvent::FocusIn) {
             setStyleSheet(
-                "QScrollArea { background-color: #1a1b1e; border: 1px solid #0ea5e9; border-radius: 6px; }"
+                "QScrollArea { background: transparent; border: 1px solid #0ea5e9; border-radius: 6px; }"
                 "QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
                 "QScrollBar::handle:vertical { background-color: #0ea5e9; border-radius: 3px; min-height: 20px; }"
                 "QScrollBar::handle:vertical:hover { background-color: #38bdf8; }"
@@ -330,7 +330,7 @@ bool ChatLogWidget::eventFilter(QObject *obj, QEvent *event) {
             );
         } else if (event->type() == QEvent::FocusOut) {
             setStyleSheet(
-                "QScrollArea { background-color: #1a1b1e; border: 1px solid #36383d; border-radius: 6px; }"
+                "QScrollArea { background: transparent; border: 1px solid #36383d; border-radius: 6px; }"
                 "QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
                 "QScrollBar::handle:vertical { background-color: #0ea5e9; border-radius: 3px; min-height: 20px; }"
                 "QScrollBar::handle:vertical:hover { background-color: #38bdf8; }"

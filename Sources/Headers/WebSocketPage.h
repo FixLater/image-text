@@ -7,6 +7,7 @@
 #include "ChatLogWidget.h"
 
 class QtWebSocketClient;
+class StarBackground;
 
 struct TabState {
     QString url;
@@ -45,6 +46,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 signals:
     void tabsChanged();
@@ -64,6 +66,7 @@ private:
     Ui::WebSocketPage *ui;
     int m_contextRow;
     ChatLogWidget *m_chatLog = nullptr;
+    StarBackground *m_starBg = nullptr;
 
     QVector<TabState> m_tabs;
     int m_activeTabIndex = -1;

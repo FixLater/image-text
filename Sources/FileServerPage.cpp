@@ -230,8 +230,21 @@ QString FileServerPage::getFileIcon(const QString &fileName) {
         return "📊";
     } else if (lower.endsWith(".ppt") || lower.endsWith(".pptx")) {
         return "📙";
+    } else if (lower.endsWith(".cpp") || lower.endsWith(".c") || lower.endsWith(".h") ||
+               lower.endsWith(".hpp") || lower.endsWith(".py") || lower.endsWith(".java") ||
+               lower.endsWith(".js") || lower.endsWith(".ts") || lower.endsWith(".html") ||
+               lower.endsWith(".css") || lower.endsWith(".json") || lower.endsWith(".xml") ||
+               lower.endsWith(".yaml") || lower.endsWith(".yml") || lower.endsWith(".sh") ||
+               lower.endsWith(".bat") || lower.endsWith(".ps1") || lower.endsWith(".vue") ||
+               lower.endsWith(".jsx") || lower.endsWith(".tsx") || lower.endsWith(".go") ||
+               lower.endsWith(".rs") || lower.endsWith(".swift") || lower.endsWith(".rb") ||
+               lower.endsWith(".php") || lower.endsWith(".sql") || lower.endsWith(".r")) {
+        return "💻";
+    } else if (lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".woff") ||
+               lower.endsWith(".woff2")) {
+        return "🔤";
     }
-    return "📁";
+    return "📄";
 }
 
 QString FileServerPage::generateFileListHtml() {
