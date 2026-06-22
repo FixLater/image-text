@@ -288,13 +288,17 @@ void MainWindow::initPages() {
 }
 
 void MainWindow::onModuleClicked(const QString &moduleName) {
-    if (moduleName == "websocket") {
-        navigateTo("websocket");
-    } else if (moduleName == "translate") {
-        navigateTo("translate");
-    } else if (moduleName == "fileserver") {
-        navigateTo("fileserver");
+    if (!m_sidebarVisible) {
+        m_sidebarVisible = true;
+        ui->viewToggleBtn->setIcon(QIcon(":/icons/dashboard.svg"));
+        ui->viewToggleBtn->setToolTip("隐藏侧边栏");
+        animateSidebar(true);
+        ui->leftBtn1->show();
+        ui->leftBtn2->show();
+        ui->leftBtn3->show();
     }
+    navigateTo(moduleName);
+    updateSidebarSelection(moduleName);
 }
 
 void MainWindow::updateSidebarSelection(const QString &active) {
