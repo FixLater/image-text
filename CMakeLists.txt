@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.27)
 project(lovely)
 
+list(APPEND CMAKE_PREFIX_PATH "D:/DevelopTools/Qt6/6.11.1/mingw_64")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)

@@ -89,14 +89,14 @@
             </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="viewToggleBtn">
-            <property name="text">
-             <string>☰</string>
-            </property>
-            <property name="toolTip">
-             <string>切换视图</string>
-            </property>
-           </widget>
+            <widget class="QPushButton" name="viewToggleBtn">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="toolTip">
+              <string>切换视图</string>
+             </property>
+            </widget>
           </item>
           <item>
            <spacer name="titleSpacer">

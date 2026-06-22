@@ -147,6 +147,7 @@ QList<ConfigModule> SettingsDialog::buildModules() {
     fileServer.fields = {
         {"fileserver/port",           "端口号",   "HTTP 文件服务器监听端口", ConfigField::Int, 8080},
         {"fileserver/allowLan",        "允许局域网访问", "允许局域网内其他设备访问", ConfigField::Bool, true},
+        {"fileserver/autoStart",      "默认启动HTTP服务器", "程序启动时自动启动文件服务器", ConfigField::Bool, false},
     };
     modules.append(fileServer);
 
@@ -311,6 +312,10 @@ int SettingsDialog::fileServerPort() {
 
 bool SettingsDialog::fileServerAllowLan() {
     return settings()->value("fileserver/allowLan", true).toBool();
+}
+
+bool SettingsDialog::fileServerAutoStart() {
+    return settings()->value("fileserver/autoStart", false).toBool();
 }
 
 void SettingsDialog::applyDialogStyle() {

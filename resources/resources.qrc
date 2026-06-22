@@ -11,6 +11,8 @@
     <file>icons/websocket.svg</file>
     <file>icons/translate.svg</file>
     <file>icons/fileserver.svg</file>
+    <file>icons/dashboard.svg</file>
+    <file>icons/sidebar.svg</file>
     <file>app_icon.jpg</file>
   </qresource>
 </RCC>

@@ -17,6 +17,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QIcon>
+#include <QPropertyAnimation>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <windowsx.h>
@@ -75,16 +76,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     connect(ui->homeBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
     connect(ui->tabAdd, &QPushButton::clicked, this, &MainWindow::onTabAddClicked);
 
-    ui->leftBtn1->hide();
-    ui->leftBtn2->hide();
-
-    ui->viewToggleBtn->setFixedSize(24, 24);
+    ui->viewToggleBtn->setFixedSize(30, 30);
     ui->viewToggleBtn->setCursor(Qt::PointingHandCursor);
+    ui->viewToggleBtn->setIcon(QIcon(":/icons/sidebar.svg"));
+    ui->viewToggleBtn->setIconSize(QSize(21, 21));
+    ui->viewToggleBtn->setToolTip("显示侧边栏");
     ui->viewToggleBtn->setStyleSheet(
-        "QPushButton { background: transparent; color: #94a3b8; border: none; border-radius: 4px; font-size: 14px; }"
-        "QPushButton:hover { background-color: #36383d; color: #e2e8f0; }"
+        "QPushButton { background: transparent; border: none; border-radius: 4px; margin-left: 8px; }"
+        "QPushButton:hover { background-color: #36383d; }"
     );
-    connect(ui->viewToggleBtn, &QPushButton::clicked, this, &MainWindow::toggleViewMode);
+    connect(ui->viewToggleBtn, &QPushButton::clicked, this, &MainWindow::toggleSidebar);
 
     applyTitleBarStyle();
     initPages();
@@ -270,11 +271,20 @@ void MainWindow::initPages() {
         m_fileServerPage->onToggleServer();
     });
 
+    if (SettingsDialog::fileServerAutoStart()) {
+        m_fileServerPage->onToggleServer();
+    }
+
     m_websocketPage->connectToCurrentTab();
 
     ui->backBtn->hide();
     ui->homeBtn->hide();
     ui->breadcrumbSeparator1->hide();
+    ui->leftBarWidget->setMinimumWidth(0);
+    ui->leftBarWidget->setMaximumWidth(0);
+    ui->leftBtn1->hide();
+    ui->leftBtn2->hide();
+    ui->leftBtn3->hide();
 }
 
 void MainWindow::onModuleClicked(const QString &moduleName) {
@@ -285,6 +295,25 @@ void MainWindow::onModuleClicked(const QString &moduleName) {
     } else if (moduleName == "fileserver") {
         navigateTo("fileserver");
     }
+}
+
+void MainWindow::updateSidebarSelection(const QString &active) {
+    auto applyStyle = [](QPushButton *btn, bool selected) {
+        if (selected) {
+            btn->setStyleSheet(
+                "QPushButton { background-color: rgba(14, 165, 233, 0.15); border: none; border-radius: 6px; }"
+                "QPushButton:hover { background-color: rgba(14, 165, 233, 0.25); }"
+            );
+        } else {
+            btn->setStyleSheet(
+                "QPushButton { background: transparent; border: none; border-radius: 6px; }"
+                "QPushButton:hover { background-color: #36383d; }"
+            );
+        }
+    };
+    applyStyle(ui->leftBtn1, active == "websocket");
+    applyStyle(ui->leftBtn2, active == "translate");
+    applyStyle(ui->leftBtn3, active == "fileserver");
 }
 
 void MainWindow::setupLeftSidebarIcons() {
@@ -302,87 +331,91 @@ void MainWindow::setupLeftSidebarIcons() {
     ui->leftBtn3->setIconSize(QSize(18, 18));
     ui->leftBtn3->setToolTip("文件服务器");
     ui->leftBtn3->setFixedSize(28, 28);
-    ui->leftBtn3->hide();
 
-    auto updateSidebarSelection = [this](const QString &active) {
-        auto applyStyle = [](QPushButton *btn, bool selected) {
-            if (selected) {
-                btn->setStyleSheet(
-                    "QPushButton { background-color: rgba(14, 165, 233, 0.15); border: none; border-radius: 6px; }"
-                    "QPushButton:hover { background-color: rgba(14, 165, 233, 0.25); }"
-                );
-            } else {
-                btn->setStyleSheet(
-                    "QPushButton { background: transparent; border: none; border-radius: 6px; }"
-                    "QPushButton:hover { background-color: #36383d; }"
-                );
-            }
-        };
-        applyStyle(ui->leftBtn1, active == "websocket");
-        applyStyle(ui->leftBtn2, active == "translate");
-        applyStyle(ui->leftBtn3, active == "fileserver");
-    };
-
-    connect(ui->leftBtn1, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
-        navigateTo("websocket");
-        updateSidebarSelection("websocket");
+    connect(ui->leftBtn1, &QPushButton::clicked, this, [this]() {
+        if (ui->leftBtn1->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
+            updateSidebarSelection("");
+            navigateBack();
+        } else {
+            navigateTo("websocket");
+            updateSidebarSelection("websocket");
+        }
     });
-    connect(ui->leftBtn2, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
-        navigateTo("translate");
-        updateSidebarSelection("translate");
+    connect(ui->leftBtn2, &QPushButton::clicked, this, [this]() {
+        if (ui->leftBtn2->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
+            updateSidebarSelection("");
+            navigateBack();
+        } else {
+            navigateTo("translate");
+            updateSidebarSelection("translate");
+        }
     });
-    connect(ui->leftBtn3, &QPushButton::clicked, this, [this, updateSidebarSelection]() {
-        navigateTo("fileserver");
-        updateSidebarSelection("fileserver");
+    connect(ui->leftBtn3, &QPushButton::clicked, this, [this]() {
+        if (ui->leftBtn3->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
+            updateSidebarSelection("");
+            navigateBack();
+        } else {
+            navigateTo("fileserver");
+            updateSidebarSelection("fileserver");
+        }
     });
 }
 
-void MainWindow::toggleViewMode() {
-    m_compactMode = !m_compactMode;
+int MainWindow::sidebarWidth() const {
+    return ui->leftBarWidget->maximumWidth();
+}
 
-    if (m_compactMode) {
-        ui->viewToggleBtn->setText("☰");
-        ui->viewToggleBtn->setToolTip("切换到磁吸卡片视图");
+void MainWindow::setSidebarWidth(int width) {
+    ui->leftBarWidget->setMinimumWidth(width);
+    ui->leftBarWidget->setMaximumWidth(width);
+}
 
+void MainWindow::animateSidebar(bool show) {
+    if (m_sidebarAnimation) {
+        m_sidebarAnimation->stop();
+        m_sidebarAnimation->deleteLater();
+        m_sidebarAnimation = nullptr;
+    }
+
+    int startWidth = ui->leftBarWidget->maximumWidth();
+    int endWidth = show ? 36 : 0;
+
+    m_sidebarAnimation = new QPropertyAnimation(ui->leftBarWidget, "maximumWidth", this);
+    m_sidebarAnimation->setDuration(200);
+    m_sidebarAnimation->setStartValue(startWidth);
+    m_sidebarAnimation->setEndValue(endWidth);
+    m_sidebarAnimation->setEasingCurve(QEasingCurve::InOutQuad);
+
+    connect(m_sidebarAnimation, &QPropertyAnimation::valueChanged, this, [this](const QVariant &value) {
+        int w = value.toInt();
+        ui->leftBarWidget->setMinimumWidth(w);
+    });
+
+    m_sidebarAnimation->start(QAbstractAnimation::DeleteWhenStopped);
+    connect(m_sidebarAnimation, &QPropertyAnimation::destroyed, this, [this]() {
+        m_sidebarAnimation = nullptr;
+    });
+}
+
+void MainWindow::toggleSidebar() {
+    m_sidebarVisible = !m_sidebarVisible;
+
+    if (m_sidebarVisible) {
+        ui->viewToggleBtn->setIcon(QIcon(":/icons/dashboard.svg"));
+        ui->viewToggleBtn->setToolTip("隐藏侧边栏");
+        animateSidebar(true);
         ui->leftBtn1->show();
         ui->leftBtn2->show();
         ui->leftBtn3->show();
-
-        navigateTo("websocket");
-
-        ui->leftBtn1->setStyleSheet(
-            "QPushButton { background-color: rgba(14, 165, 233, 0.15); border: none; border-radius: 6px; }"
-            "QPushButton:hover { background-color: rgba(14, 165, 233, 0.25); }"
-        );
-        ui->leftBtn2->setStyleSheet(
-            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #36383d; }"
-        );
-        ui->leftBtn3->setStyleSheet(
-            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #36383d; }"
-        );
+        updateSidebarSelection("");
     } else {
-        ui->viewToggleBtn->setText("☰");
-        ui->viewToggleBtn->setToolTip("切换到侧边栏视图");
-
+        ui->viewToggleBtn->setIcon(QIcon(":/icons/sidebar.svg"));
+        ui->viewToggleBtn->setToolTip("显示侧边栏");
+        animateSidebar(false);
         ui->leftBtn1->hide();
         ui->leftBtn2->hide();
         ui->leftBtn3->hide();
-
-        ui->leftBtn1->setStyleSheet(
-            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #36383d; }"
-        );
-        ui->leftBtn2->setStyleSheet(
-            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #36383d; }"
-        );
-        ui->leftBtn3->setStyleSheet(
-            "QPushButton { background: transparent; border: none; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #36383d; }"
-        );
-
+        updateSidebarSelection("");
         navigateBack();
     }
 }
@@ -401,12 +434,6 @@ void MainWindow::navigateTo(const QString &moduleName) {
         ui->stackedWidget->setCurrentWidget(m_fileServerPage);
         updateBreadcrumb("仪表盘 › 文件服务器");
         ui->tabBarWidget->hide();
-    }
-
-    if (!m_compactMode) {
-        ui->backBtn->show();
-        ui->homeBtn->show();
-        ui->breadcrumbSeparator1->show();
     }
 }
 
@@ -434,18 +461,9 @@ void MainWindow::navigateBack() {
 }
 
 void MainWindow::updateBreadcrumb(const QString &path) {
-    if (m_compactMode) {
-        ui->breadcrumbLabel->setText("");
-        ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(20, 20));
-        return;
-    }
-    if (path.contains(QStringLiteral("›"))) {
-        ui->breadcrumbLabel->setText(path);
-        ui->breadcrumbLabel->setPixmap(QPixmap());
-    } else {
-        ui->breadcrumbLabel->setText("");
-        ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(20, 20));
-    }
+    Q_UNUSED(path);
+    ui->breadcrumbLabel->setText("");
+    ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(20, 20));
 }
 
 void MainWindow::showTabBar(bool show) {

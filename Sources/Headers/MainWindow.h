@@ -9,6 +9,7 @@
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QTimer>
+#include <QPropertyAnimation>
 
 class SettingsDialog;
 class DashboardPage;
@@ -23,10 +24,14 @@ namespace Ui {
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
+    Q_PROPERTY(int sidebarWidth READ sidebarWidth WRITE setSidebarWidth)
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
+
+    int sidebarWidth() const;
+    void setSidebarWidth(int width);
 
 protected:
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
@@ -76,10 +81,14 @@ private:
     void showTabBar(bool show);
     void updateDashboardTabInfo();
     int m_activeTabIndex = -1;
-    bool m_compactMode = false;
+    bool m_sidebarVisible = false;
 
-    void toggleViewMode();
+    void toggleSidebar();
     void setupLeftSidebarIcons();
+    void animateSidebar(bool show);
+    void updateSidebarSelection(const QString &active);
+
+    QPropertyAnimation *m_sidebarAnimation = nullptr;
 };
 
 #endif // MAINWINDOW_H

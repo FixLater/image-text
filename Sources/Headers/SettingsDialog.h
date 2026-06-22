@@ -52,6 +52,7 @@ public:
     static QString translateTargetLang();
     static int fileServerPort();
     static bool fileServerAllowLan();
+    static bool fileServerAutoStart();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
