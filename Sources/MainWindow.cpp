@@ -63,6 +63,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->closeBtn->setIconSize(QSize(16, 16));
     ui->settingsBtn->setIcon(QIcon(":/icons/settings.svg"));
     ui->settingsBtn->setIconSize(QSize(16, 16));
+
+    ui->onlineLabel->setStyleSheet(
+        "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
+    );
+    ui->onlineLabel->setText("offline");
+    ui->onlineLabel->setToolTip("http://127.0.0.1:8200");
+
     ui->backBtn->setIcon(QIcon(":/icons/back.svg"));
     ui->backBtn->setIconSize(QSize(14, 14));
     ui->homeBtn->setIcon(QIcon(":/icons/home.svg"));
@@ -98,6 +105,8 @@ void MainWindow::onSettingsClicked() {
     SettingsDialog dlg(this);
     if (dlg.exec() == QDialog::Accepted) {
         m_websocketPage->refreshUrlFromSettings();
+        m_fileServerPage->refreshFromSettings();
+        ui->onlineLabel->setToolTip("http://127.0.0.1:8200");
     }
 }
 
@@ -245,6 +254,17 @@ void MainWindow::initPages() {
     connect(m_websocketPage, &WebSocketPage::tabsChanged, this, &MainWindow::rebuildTabBar);
     connect(m_websocketPage, &WebSocketPage::statusChanged, this, [this](bool connected) {
         m_dashboardPage->updateCardStatus("websocket", connected);
+        if (connected) {
+            ui->onlineLabel->setText("online");
+            ui->onlineLabel->setStyleSheet(
+                "color: #34d399; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
+            );
+        } else {
+            ui->onlineLabel->setText("offline");
+            ui->onlineLabel->setStyleSheet(
+                "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
+            );
+        }
     });
     connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](int tabIndex, const QString &html) {
         m_dashboardPage->appendCardLog("websocket", tabIndex, html);
@@ -392,7 +412,7 @@ void MainWindow::animateSidebar(bool show) {
     int startWidth = ui->leftBarWidget->maximumWidth();
     int endWidth = show ? 36 : 0;
 
-    m_sidebarAnimation = new QPropertyAnimation(ui->leftBarWidget, "maximumWidth", this);
+    m_sidebarAnimation = new QPropertyAnimation(ui->leftBarWidget, "maximumWidth");
     m_sidebarAnimation->setDuration(200);
     m_sidebarAnimation->setStartValue(startWidth);
     m_sidebarAnimation->setEndValue(endWidth);

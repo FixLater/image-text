@@ -1,4 +1,5 @@
 #include "SettingsDialog.h"
+#include "ConfigService.h"
 #include <QLabel>
 #include <QFormLayout>
 #include <QPushButton>
@@ -8,6 +9,8 @@
 #include <QMouseEvent>
 #include <QIcon>
 #include <QCoreApplication>
+
+static ConfigService *s_configService = nullptr;
 
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
                                                   m_dragging(false) {
@@ -38,6 +41,10 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     titleLabel->setStyleSheet("color: #94a3b8; font-size: 9pt; background: transparent; border: none;");
     titleLayout->addWidget(titleLabel);
     titleLayout->addStretch();
+
+    m_serverStatusLabel = new QLabel("● 服务端未连接", titleBar);
+    m_serverStatusLabel->setStyleSheet("color: #64748b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+    titleLayout->addWidget(m_serverStatusLabel);
 
     auto *closeBtn = new QPushButton(titleBar);
     closeBtn->setObjectName("settingsCloseBtn");
@@ -100,11 +107,32 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     applyDialogStyle();
 
     m_navList->setCurrentRow(0);
+
+    if (configService()) {
+        connect(configService(), &ConfigService::allConfigsLoaded, this, &SettingsDialog::onLoadFromServer);
+        connect(configService(), &ConfigService::serverStatusChanged, this, [this](const bool available) {
+            if (available) {
+                m_serverStatusLabel->setText("● 服务端已连接");
+                m_serverStatusLabel->setStyleSheet("color: #34d399; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+            } else {
+                m_serverStatusLabel->setText("● 服务端未连接");
+                m_serverStatusLabel->setStyleSheet("color: #64748b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+            }
+        });
+        configService()->loadAll();
+    }
 }
 
 QSettings *SettingsDialog::settings() {
     static QSettings s(QCoreApplication::applicationDirPath() + "/lovely.ini", QSettings::IniFormat);
     return &s;
+}
+
+ConfigService *SettingsDialog::configService() {
+    if (!s_configService) {
+        s_configService = new ConfigService("http://127.0.0.1:8200", qApp);
+    }
+    return s_configService;
 }
 
 QList<ConfigModule> SettingsDialog::buildModules() {
@@ -203,14 +231,14 @@ QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
             check->setProperty("settingsKey", field.key);
             form->addRow(field.label + ":", check);
         } else if (field.type == ConfigField::Choice) {
-            auto *container = new QWidget();
-            container->setObjectName("settingsRadioGroup");
-            container->setProperty("settingsKey", field.key);
-            auto *radioLayout = new QVBoxLayout(container);
+            auto *groupWidget = new QWidget();
+            groupWidget->setObjectName("settingsRadioGroup");
+            groupWidget->setProperty("settingsKey", field.key);
+            auto *radioLayout = new QVBoxLayout(groupWidget);
             radioLayout->setContentsMargins(0, 0, 0, 0);
             radioLayout->setSpacing(8);
 
-            auto *btnGroup = new QButtonGroup(container);
+            auto *btnGroup = new QButtonGroup(groupWidget);
             btnGroup->setExclusive(true);
             int currentIdx = current.toInt();
 
@@ -221,7 +249,7 @@ QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
                 btnGroup->addButton(radio, i);
                 radioLayout->addWidget(radio);
             }
-            form->addRow(field.label + ":", container);
+            form->addRow(field.label + ":", groupWidget);
         }
     }
 
@@ -229,8 +257,51 @@ QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
     return scroll;
 }
 
+void SettingsDialog::onLoadFromServer(const QMap<QString, QString> &configs) {
+    if (configs.isEmpty()) return;
+
+    auto *s = settings();
+    for (int t = 0; t < m_stack->count(); ++t) {
+        auto *tab = m_stack->widget(t);
+        if (!tab) continue;
+        auto *scroll = qobject_cast<QScrollArea *>(tab);
+        if (!scroll) continue;
+        auto *container = scroll->widget();
+        if (!container) continue;
+
+        auto children = container->findChildren<QWidget *>();
+        for (auto *w : children) {
+            QString key = w->property("settingsKey").toString();
+            if (key.isEmpty()) continue;
+            if (!configs.contains(key)) continue;
+
+            QString val = configs.value(key);
+            if (auto *edit = qobject_cast<QLineEdit *>(w)) {
+                edit->setText(val);
+                s->setValue(key, val);
+            } else if (auto *spin = qobject_cast<QSpinBox *>(w)) {
+                spin->setValue(val.toInt());
+                s->setValue(key, val.toInt());
+            } else if (auto *check = qobject_cast<QCheckBox *>(w)) {
+                check->setChecked(val == "true");
+                s->setValue(key, val == "true");
+            } else if (w->objectName() == "settingsRadioGroup") {
+                auto *btnGroup = w->findChild<QButtonGroup *>();
+                if (btnGroup) {
+                    int idx = val.toInt();
+                    if (auto *btn = btnGroup->button(idx)) btn->setChecked(true);
+                    s->setValue(key, idx);
+                }
+            }
+        }
+    }
+    s->sync();
+}
+
 void SettingsDialog::onSave() {
     auto *s = settings();
+    QMap<QString, QString> serverConfigs;
+
     for (int t = 0; t < m_stack->count(); ++t) {
         auto *tab = m_stack->widget(t);
         if (!tab) continue;
@@ -246,19 +317,29 @@ void SettingsDialog::onSave() {
 
             if (auto *edit = qobject_cast<QLineEdit *>(w)) {
                 s->setValue(key, edit->text());
+                serverConfigs[key] = edit->text();
             } else if (auto *spin = qobject_cast<QSpinBox *>(w)) {
                 s->setValue(key, spin->value());
+                serverConfigs[key] = QString::number(spin->value());
             } else if (auto *check = qobject_cast<QCheckBox *>(w)) {
                 s->setValue(key, check->isChecked());
+                serverConfigs[key] = check->isChecked() ? "true" : "false";
             } else if (w->objectName() == "settingsRadioGroup") {
                 auto *btnGroup = w->findChild<QButtonGroup *>();
                 if (btnGroup) {
-                    s->setValue(key, btnGroup->checkedId());
+                    int id = btnGroup->checkedId();
+                    s->setValue(key, id);
+                    serverConfigs[key] = QString::number(id);
                 }
             }
         }
     }
     s->sync();
+
+    if (configService() && configService()->isServerAvailable()) {
+        configService()->saveAll(serverConfigs);
+    }
+
     accept();
 }
 

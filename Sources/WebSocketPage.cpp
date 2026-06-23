@@ -153,7 +153,7 @@ bool WebSocketPage::isConnected() const {
 
 void WebSocketPage::addTab(const QString &url) {
     TabState state;
-    state.url = url;
+    state.url = url.isEmpty() ? SettingsDialog::wsUrl() : url;
     state.fileModel = new QStandardItemModel(this);
     m_tabs.append(state);
 
@@ -266,6 +266,9 @@ void WebSocketPage::closeTab(int index) {
     if (tab.client) {
         tab.client->disconnectFromServer();
         tab.client->deleteLater();
+    }
+    if (tab.fileModel) {
+        tab.fileModel->deleteLater();
     }
 
     m_tabs.removeAt(index);

@@ -22,6 +22,7 @@ public:
     QString serverAddress() const;
     int port() const;
     void onToggleServer();
+    void refreshFromSettings();
 
 signals:
     void statusChanged(bool running);

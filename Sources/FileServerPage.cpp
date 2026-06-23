@@ -99,6 +99,11 @@ void FileServerPage::setupUI() {
 
     m_mainLayout->addWidget(cardWidget);
     m_mainLayout->addStretch(1);
+
+    m_addressLabel->setOpenExternalLinks(true);
+    connect(m_addressLabel, &QLabel::linkActivated, this, [](const QString &link) {
+        QDesktopServices::openUrl(QUrl(link));
+    });
 }
 
 bool FileServerPage::isRunning() const {
@@ -129,6 +134,17 @@ void FileServerPage::onToggleServer() {
     }
 }
 
+void FileServerPage::refreshFromSettings() {
+    int newPort = SettingsDialog::fileServerPort();
+    if (m_running && m_port != newPort) {
+        stopServer();
+        m_port = newPort;
+        startServer();
+    } else {
+        m_port = newPort;
+    }
+}
+
 void FileServerPage::startServer() {
     if (m_server->listen(QHostAddress::Any, m_port)) {
         m_running = true;
@@ -145,10 +161,6 @@ void FileServerPage::startServer() {
         m_addressLabel->setStyleSheet(
             "color: #0ea5e9; font-size: 9pt; background: transparent; border: none; text-decoration: underline;"
         );
-        m_addressLabel->setOpenExternalLinks(true);
-        connect(m_addressLabel, &QLabel::linkActivated, this, [](const QString &link) {
-            QDesktopServices::openUrl(QUrl(link));
-        });
         emit statusChanged(true);
     } else {
         m_statusLabel->setStyleSheet(

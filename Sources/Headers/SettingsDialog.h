@@ -6,6 +6,7 @@
 #include <QListWidget>
 #include <QVBoxLayout>
 #include <QSettings>
+#include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QCheckBox>
@@ -14,6 +15,8 @@
 #include <QButtonGroup>
 #include <QMap>
 #include <QPoint>
+
+class ConfigService;
 
 struct ConfigField {
     QString key;
@@ -37,6 +40,7 @@ public:
     explicit SettingsDialog(QWidget *parent = nullptr);
 
     static QSettings *settings();
+    static ConfigService *configService();
 
     static QString wsUrl();
     static int wsPingIntervalMs();
@@ -64,6 +68,7 @@ private:
     QStackedWidget *m_stack;
     bool m_dragging;
     QPoint m_dragPos;
+    QLabel *m_serverStatusLabel = nullptr;
 
     void buildNav();
 
@@ -74,6 +79,7 @@ private:
 
 private slots:
     void onSave();
+    void onLoadFromServer(const QMap<QString, QString> &configs);
 };
 
 #endif // SETTINGSDIALOG_H

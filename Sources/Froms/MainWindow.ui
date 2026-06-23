@@ -99,19 +99,17 @@
             </widget>
           </item>
           <item>
-           <spacer name="titleSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
+         <spacer name="titleSpacer">
          </spacer>
         </item>
-         <item>
+        <item>
+         <widget class="QLabel" name="onlineLabel">
+          <property name="text">
+           <string>online</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="settingsBtn">
           <property name="text">
            <string/>

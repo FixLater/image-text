@@ -307,13 +307,6 @@ QWidget *DashboardPage::createTranslateCard() {
     topRow->addWidget(titleLabel);
     topRow->addStretch(1);
 
-    m_translateStatus = new QLabel();
-    m_translateStatus->setStyleSheet(
-        "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
-        "min-height: 8px; max-height: 8px; border: none;"
-    );
-    topRow->addWidget(m_translateStatus);
-
     mainLayout->addLayout(topRow);
 
     m_translateInput = new QTextEdit();
@@ -453,10 +446,6 @@ QWidget *DashboardPage::createFileServerCard() {
 
 void DashboardPage::doTranslate(const QString &text) {
     m_translateBtn->setEnabled(false);
-    m_translateStatus->setStyleSheet(
-        "color: #fbbf24; border-radius: 4px; min-width: 8px; max-width: 8px;"
-        "min-height: 8px; max-height: 8px; border: none;"
-    );
     m_translateResult->setText("翻译中...");
 
     QJsonObject body;
@@ -471,10 +460,6 @@ void DashboardPage::doTranslate(const QString &text) {
     connect(reply, &QNetworkReply::finished, this, [this, reply, text]() {
         reply->deleteLater();
         m_translateBtn->setEnabled(true);
-        m_translateStatus->setStyleSheet(
-            "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
-            "min-height: 8px; max-height: 8px; border: none;"
-        );
 
         if (reply->error() != QNetworkReply::NoError) {
             m_translateResult->setText("请求失败: " + reply->errorString());

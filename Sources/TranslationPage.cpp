@@ -399,19 +399,19 @@ void TranslationPage::showResultWithAnimation()
 
     m_resultArea->show();
 
-    m_heightAnim = new QPropertyAnimation(this, "inputCardHeight", this);
+    m_heightAnim = new QPropertyAnimation(this, "inputCardHeight");
     m_heightAnim->setDuration(320);
     m_heightAnim->setStartValue(m_inputCard->height());
     m_heightAnim->setEndValue(m_inputCardCompactHeight);
     m_heightAnim->setEasingCurve(QEasingCurve::OutCubic);
 
-    m_resultAnim = new QPropertyAnimation(this, "resultAreaHeight", this);
+    m_resultAnim = new QPropertyAnimation(this, "resultAreaHeight");
     m_resultAnim->setDuration(320);
     m_resultAnim->setStartValue(m_resultArea->height());
     m_resultAnim->setEndValue(m_resultAreaTargetHeight);
     m_resultAnim->setEasingCurve(QEasingCurve::OutCubic);
 
-    auto *group = new QParallelAnimationGroup(this);
+    auto *group = new QParallelAnimationGroup();
     group->addAnimation(m_heightAnim);
     group->addAnimation(m_resultAnim);
 
@@ -446,19 +446,19 @@ void TranslationPage::hideResultWithAnimation()
 
     m_inputEdit->setFixedHeight(220);
 
-    m_heightAnim = new QPropertyAnimation(this, "inputCardHeight", this);
+    m_heightAnim = new QPropertyAnimation(this, "inputCardHeight");
     m_heightAnim->setDuration(260);
     m_heightAnim->setStartValue(m_inputCard->height());
     m_heightAnim->setEndValue(m_inputCardDefaultHeight);
     m_heightAnim->setEasingCurve(QEasingCurve::InOutCubic);
 
-    m_resultAnim = new QPropertyAnimation(this, "resultAreaHeight", this);
+    m_resultAnim = new QPropertyAnimation(this, "resultAreaHeight");
     m_resultAnim->setDuration(260);
     m_resultAnim->setStartValue(m_resultArea->height());
     m_resultAnim->setEndValue(0);
     m_resultAnim->setEasingCurve(QEasingCurve::InOutCubic);
 
-    auto *group = new QParallelAnimationGroup(this);
+    auto *group = new QParallelAnimationGroup();
     group->addAnimation(m_heightAnim);
     group->addAnimation(m_resultAnim);
 

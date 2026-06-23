@@ -25,6 +25,7 @@ set(SOURCES
     Sources/QtWebSocketClient.cpp
     Sources/TableItemDelegate.cpp
     Sources/SettingsDialog.cpp
+    Sources/ConfigService.cpp
     Sources/TranslationPage.cpp
     Sources/FileServerPage.cpp
 )
@@ -43,6 +44,7 @@ set(HEADERS
     Sources/Headers/QtWebSocketClient.h
     Sources/Headers/TableItemDelegate.h
     Sources/Headers/SettingsDialog.h
+    Sources/Headers/ConfigService.h
     Sources/Headers/TranslationPage.h
     Sources/Headers/FileServerPage.h
 )

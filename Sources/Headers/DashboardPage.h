@@ -56,7 +56,6 @@ private:
 
     QTextEdit *m_translateInput = nullptr;
     QLabel *m_translateResult = nullptr;
-    QLabel *m_translateStatus = nullptr;
     QPushButton *m_translateBtn = nullptr;
     QNetworkAccessManager *m_networkManager = nullptr;
 
