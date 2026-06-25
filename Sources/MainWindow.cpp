@@ -6,6 +6,7 @@
 #include "FileServerPage.h"
 #include "ShellManagerPage.h"
 #include "SettingsDialog.h"
+#include "ConfigService.h"
 #include "StarBackground.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -107,7 +108,7 @@ void MainWindow::onSettingsClicked() {
     if (dlg.exec() == QDialog::Accepted) {
         m_websocketPage->refreshUrlFromSettings();
         m_fileServerPage->refreshFromSettings();
-        ui->onlineLabel->setToolTip("http://127.0.0.1:8200");
+        SettingsDialog::configService()->loadAll();
     }
 }
 
@@ -257,18 +258,25 @@ void MainWindow::initPages() {
     connect(m_websocketPage, &WebSocketPage::tabsChanged, this, &MainWindow::rebuildTabBar);
     connect(m_websocketPage, &WebSocketPage::statusChanged, this, [this](bool connected) {
         m_dashboardPage->updateCardStatus("websocket", connected);
-        if (connected) {
-            ui->onlineLabel->setText("online");
-            ui->onlineLabel->setStyleSheet(
-                "color: #34d399; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
-            );
-        } else {
-            ui->onlineLabel->setText("offline");
-            ui->onlineLabel->setStyleSheet(
-                "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
-            );
-        }
     });
+
+    if (SettingsDialog::configService()) {
+        connect(SettingsDialog::configService(), &ConfigService::serverStatusChanged, this, [this](bool available) {
+            if (available) {
+                ui->onlineLabel->setText("online");
+                ui->onlineLabel->setStyleSheet(
+                    "color: #34d399; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
+                );
+            } else {
+                ui->onlineLabel->setText("offline");
+                ui->onlineLabel->setStyleSheet(
+                    "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
+                );
+            }
+        });
+        ui->onlineLabel->setToolTip("http://127.0.0.1:8200");
+        SettingsDialog::configService()->loadAll();
+    }
     connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](int tabIndex, const QString &html) {
         m_dashboardPage->appendCardLog("websocket", tabIndex, html);
     });

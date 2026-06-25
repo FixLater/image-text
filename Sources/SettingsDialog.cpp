@@ -44,6 +44,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
 
     m_serverStatusLabel = new QLabel("● 服务端未连接", titleBar);
     m_serverStatusLabel->setStyleSheet("color: #64748b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+    m_serverStatusLabel->setToolTip("http://127.0.0.1:8200");
     titleLayout->addWidget(m_serverStatusLabel);
 
     auto *closeBtn = new QPushButton(titleBar);
