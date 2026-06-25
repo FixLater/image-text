@@ -209,6 +209,13 @@
              </property>
             </widget>
            </item>
+           <item>
+            <widget class="QPushButton" name="leftBtn4">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
           <item>
            <spacer name="leftSpacer">
             <property name="orientation">

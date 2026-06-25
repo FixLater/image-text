@@ -1,6 +1,7 @@
 #include "DashboardPage.h"
 #include "SettingsDialog.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
 #include <QMouseEvent>
@@ -10,30 +11,89 @@
 #include <QNetworkRequest>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QPropertyAnimation>
+#include <QParallelAnimationGroup>
+#include <QTimer>
 
 DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(32, 24, 32, 24);
     mainLayout->setSpacing(0);
 
-    m_gridLayout = new QGridLayout();
-    m_gridLayout->setSpacing(16);
-    m_gridLayout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    m_cardArea = new QWidget(this);
+    m_cardArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mainLayout->addWidget(m_cardArea);
 
     ModuleCard wsCard;
     wsCard.name = "websocket";
     wsCard.icon = "⚡";
     wsCard.title = "WebSocket";
     wsCard.description = "连接 WebSocket 服务器，实时发送消息和文件";
-    m_gridLayout->addWidget(createCard(wsCard), 0, 0);
+    m_cardContainers["websocket"] = createCard(wsCard);
+    m_cardContainers["websocket"]->setParent(m_cardArea);
+    m_cardOrder << "websocket";
 
-    m_gridLayout->addWidget(createTranslateCard(), 0, 1);
-    m_gridLayout->addWidget(createFileServerCard(), 0, 2);
+    m_cardContainers["translate"] = createTranslateCard();
+    m_cardContainers["translate"]->setParent(m_cardArea);
+    m_cardOrder << "translate";
 
-    mainLayout->addLayout(m_gridLayout);
-    mainLayout->addStretch(1);
+    m_cardContainers["fileserver"] = createFileServerCard();
+    m_cardContainers["fileserver"]->setParent(m_cardArea);
+    m_cardOrder << "fileserver";
+
+    m_cardContainers["shell"] = createShellCard();
+    m_cardContainers["shell"]->setParent(m_cardArea);
+    m_cardOrder << "shell";
 
     m_networkManager = new QNetworkAccessManager(this);
+
+    QTimer::singleShot(0, this, [this]() { resizeEvent(nullptr); });
+}
+
+void DashboardPage::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+
+    if (m_isExpanded) {
+        int areaW = m_cardArea->width();
+        int areaH = m_cardArea->height();
+        int padding = 16;
+        int leftW = 260;
+        int rightW = areaW - leftW - padding * 3;
+        if (rightW < 200) rightW = 200;
+        int smallCardH = 130;
+        int gap = 12;
+
+        int leftIndex = 0;
+        for (int i = 0; i < m_cardOrder.size(); ++i) {
+            if (m_cardOrder[i] == m_expandedCardName) continue;
+            auto *card = m_cardContainers[m_cardOrder[i]];
+            card->setGeometry(padding, leftIndex * (smallCardH + gap), leftW, smallCardH);
+            leftIndex++;
+        }
+
+        auto *expandedCard = m_cardContainers[m_expandedCardName];
+        expandedCard->setGeometry(leftW + padding * 2, 0, rightW, areaH);
+        return;
+    }
+
+    int areaW = m_cardArea->width();
+    int areaH = m_cardArea->height();
+    int cardW = 280;
+    int cardH = 180;
+    int gap = 16;
+    int cols = qMax(1, (areaW + gap) / (cardW + gap));
+    int startX = (areaW - cols * cardW - (cols - 1) * gap) / 2;
+
+    for (int i = 0; i < m_cardOrder.size(); ++i) {
+        auto *card = m_cardContainers[m_cardOrder[i]];
+        int col = i % cols;
+        int row = i / cols;
+        int x = startX + col * (cardW + gap);
+        int y = row * (cardH + gap);
+        card->setFixedSize(cardW, cardH);
+        card->move(x, y);
+        card->show();
+    }
 }
 
 bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
@@ -44,30 +104,41 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
             if (!cardWidget) return false;
 
             auto *clickedChild = cardWidget->childAt(mouseEvent->pos());
-            if (!clickedChild) return false;
-
-            if (clickedChild->objectName() == "prevBtn" || clickedChild->objectName() == "nextBtn")
-                return false;
-
-            int clickY = mouseEvent->pos().y();
-            if (clickY <= 36) {
-                QString name;
-                if (cardWidget->objectName() == "moduleCard") {
-                    for (auto it = m_cardWidgets.constBegin(); it != m_cardWidgets.constEnd(); ++it) {
-                        if (it.value().logPreview && it.value().logPreview->parentWidget() == cardWidget) {
-                            name = it.key();
-                            break;
-                        }
-                    }
-                } else if (cardWidget->objectName() == "translateCard") {
-                    name = "translate";
-                } else if (cardWidget->objectName() == "fileServerCard") {
-                    name = "fileserver";
-                }
-                if (!name.isEmpty()) {
-                    emit moduleClicked(name);
+            if (clickedChild) {
+                if (clickedChild->objectName() == "prevBtn" || clickedChild->objectName() == "nextBtn")
                     return false;
+            }
+
+            QString name;
+            if (cardWidget->objectName() == "moduleCard") {
+                for (auto it = m_cardWidgets.constBegin(); it != m_cardWidgets.constEnd(); ++it) {
+                    if (it.value().logPreview && it.value().logPreview->parentWidget() == cardWidget) {
+                        name = it.key();
+                        break;
+                    }
                 }
+            } else if (cardWidget->objectName() == "translateCard") {
+                name = "translate";
+            } else if (cardWidget->objectName() == "fileServerCard") {
+                name = "fileserver";
+            } else if (cardWidget->objectName() == "shellCard") {
+                name = "shell";
+            }
+
+            if (!name.isEmpty()) {
+                int clickY = mouseEvent->pos().y();
+                if (clickY <= 36) {
+                    emit moduleClicked(name);
+                } else {
+                    if (m_isExpanded && m_expandedCardName == name) {
+                        collapseCard();
+                    } else if (m_isExpanded && m_expandedCardName != name) {
+                        switchCard(name);
+                    } else if (!m_isExpanded) {
+                        expandCard(name);
+                    }
+                }
+                return true;
             }
         }
     }
@@ -444,6 +515,64 @@ QWidget *DashboardPage::createFileServerCard() {
     return cardWidget;
 }
 
+QWidget *DashboardPage::createShellCard() {
+    auto *cardWidget = new QWidget();
+    cardWidget->setFixedSize(280, 180);
+    cardWidget->setObjectName("shellCard");
+    cardWidget->setCursor(Qt::PointingHandCursor);
+
+    auto *mainLayout = new QVBoxLayout(cardWidget);
+    mainLayout->setContentsMargins(16, 10, 16, 10);
+    mainLayout->setSpacing(4);
+
+    auto *topRow = new QHBoxLayout();
+    topRow->setSpacing(6);
+
+    auto *titleLabel = new QLabel("Shell");
+    titleLabel->setStyleSheet(
+        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;"
+    );
+    topRow->addWidget(titleLabel);
+    topRow->addStretch(1);
+
+    mainLayout->addLayout(topRow);
+    mainLayout->addSpacing(4);
+
+    auto *descLabel = new QLabel("执行系统命令\n管理本地 Shell 会话");
+    descLabel->setStyleSheet(
+        "color: #64748b; font-size: 8pt; background: transparent; border: none;"
+    );
+    mainLayout->addWidget(descLabel);
+
+    mainLayout->addStretch(1);
+
+    auto *statusRow = new QHBoxLayout();
+    statusRow->setContentsMargins(0, 0, 0, 0);
+
+    auto *statusLabel = new QLabel("●");
+    statusLabel->setStyleSheet(
+        "color: #64748b; font-size: 12pt; background: transparent; border: none;"
+    );
+    statusRow->addWidget(statusLabel);
+    statusRow->addStretch(1);
+
+    mainLayout->addLayout(statusRow);
+
+    cardWidget->setStyleSheet(
+        "#shellCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
+        "#shellCard:hover { background-color: rgba(42, 44, 48, 0.5); border-color: #0ea5e9; }"
+    );
+
+    auto *shadow = new QGraphicsDropShadowEffect();
+    shadow->setBlurRadius(20);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 60));
+    cardWidget->setGraphicsEffect(shadow);
+    cardWidget->installEventFilter(this);
+
+    return cardWidget;
+}
+
 void DashboardPage::doTranslate(const QString &text) {
     m_translateBtn->setEnabled(false);
     m_translateResult->setText("翻译中...");
@@ -476,4 +605,171 @@ void DashboardPage::doTranslate(const QString &text) {
             m_translateResult->setText("翻译结果为空");
         }
     });
+}
+
+void DashboardPage::startAnimation(const QList<AnimCard> &cards) {
+    if (m_animTimer) {
+        m_animTimer->stop();
+        delete m_animTimer;
+    }
+    m_animCards = cards;
+    m_animStep = 0;
+    m_animTotalSteps = 20;
+    m_animTimer = new QTimer(this);
+    connect(m_animTimer, &QTimer::timeout, this, &DashboardPage::animationTick);
+    m_animTimer->start(18);
+}
+
+void DashboardPage::animationTick() {
+    m_animStep++;
+    double t = qMin(1.0, (double)m_animStep / m_animTotalSteps);
+    double ease = 1.0 - pow(1.0 - t, 3);
+
+    for (auto &ac : m_animCards) {
+        int x = ac.startGeo.x() + (ac.endGeo.x() - ac.startGeo.x()) * ease;
+        int y = ac.startGeo.y() + (ac.endGeo.y() - ac.startGeo.y()) * ease;
+        int w = ac.startGeo.width() + (ac.endGeo.width() - ac.startGeo.width()) * ease;
+        int h = ac.startGeo.height() + (ac.endGeo.height() - ac.startGeo.height()) * ease;
+        ac.widget->setGeometry(x, y, w, h);
+    }
+
+    if (m_animStep >= m_animTotalSteps) {
+        m_animTimer->stop();
+        m_animCards.clear();
+    }
+}
+
+void DashboardPage::expandCard(const QString &cardName) {
+    if (m_isExpanded || !m_cardContainers.contains(cardName)) return;
+
+    m_isExpanded = true;
+    m_expandedCardName = cardName;
+
+    int areaW = m_cardArea->width();
+    int areaH = m_cardArea->height();
+    if (areaW < 100 || areaH < 100) return;
+
+    int padding = 16;
+    int leftW = 260;
+    int rightW = areaW - leftW - padding * 3;
+    if (rightW < 200) rightW = 200;
+    int smallCardH = 130;
+    int gap = 12;
+
+    QList<AnimCard> anims;
+
+    int leftIndex = 0;
+    for (int i = 0; i < m_cardOrder.size(); ++i) {
+        if (m_cardOrder[i] == cardName) continue;
+
+        auto *card = m_cardContainers[m_cardOrder[i]];
+        card->setGraphicsEffect(nullptr);
+        card->setMinimumSize(0, 0);
+        card->setMaximumSize(16777215, 16777215);
+
+        AnimCard ac;
+        ac.widget = card;
+        ac.startGeo = card->geometry();
+        ac.endGeo = QRect(padding, leftIndex * (smallCardH + gap), leftW, smallCardH);
+        anims.append(ac);
+
+        leftIndex++;
+    }
+
+    auto *expandedCard = m_cardContainers[cardName];
+    expandedCard->setGraphicsEffect(nullptr);
+    expandedCard->setMinimumSize(0, 0);
+    expandedCard->setMaximumSize(16777215, 16777215);
+    expandedCard->raise();
+
+    AnimCard ac;
+    ac.widget = expandedCard;
+    ac.startGeo = expandedCard->geometry();
+    ac.endGeo = QRect(leftW + padding * 2, 0, rightW, areaH);
+    anims.append(ac);
+
+    startAnimation(anims);
+}
+
+void DashboardPage::switchCard(const QString &cardName) {
+    if (!m_isExpanded || !m_cardContainers.contains(cardName)) return;
+
+    m_expandedCardName = cardName;
+
+    int areaW = m_cardArea->width();
+    int areaH = m_cardArea->height();
+    int padding = 16;
+    int leftW = 260;
+    int rightW = areaW - leftW - padding * 3;
+    if (rightW < 200) rightW = 200;
+    int smallCardH = 130;
+    int gap = 12;
+
+    QList<AnimCard> anims;
+
+    int leftIndex = 0;
+    for (int i = 0; i < m_cardOrder.size(); ++i) {
+        auto *card = m_cardContainers[m_cardOrder[i]];
+        card->setGraphicsEffect(nullptr);
+        card->setMinimumSize(0, 0);
+        card->setMaximumSize(16777215, 16777215);
+
+        AnimCard ac;
+        ac.widget = card;
+        ac.startGeo = card->geometry();
+
+        if (m_cardOrder[i] == cardName) {
+            ac.endGeo = QRect(leftW + padding * 2, 0, rightW, areaH);
+            card->raise();
+        } else {
+            ac.endGeo = QRect(padding, leftIndex * (smallCardH + gap), leftW, smallCardH);
+            leftIndex++;
+        }
+
+        anims.append(ac);
+    }
+
+    startAnimation(anims);
+}
+
+void DashboardPage::collapseCard() {
+    if (!m_isExpanded) return;
+
+    int areaW = m_cardArea->width();
+    int cardW = 280;
+    int cardH = 180;
+    int gap = 16;
+    int cols = qMax(1, (areaW + gap) / (cardW + gap));
+    int startX = (areaW - cols * cardW - (cols - 1) * gap) / 2;
+
+    QList<AnimCard> anims;
+
+    for (int i = 0; i < m_cardOrder.size(); ++i) {
+        auto *card = m_cardContainers[m_cardOrder[i]];
+        card->setGraphicsEffect(nullptr);
+        int col = i % cols;
+        int row = i / cols;
+
+        AnimCard ac;
+        ac.widget = card;
+        ac.startGeo = card->geometry();
+        ac.endGeo = QRect(startX + col * (cardW + gap), row * (cardH + gap), cardW, cardH);
+        anims.append(ac);
+    }
+
+    m_isExpanded = false;
+    m_expandedCardName.clear();
+
+    QTimer::singleShot(380, this, [this]() {
+        for (auto it = m_cardContainers.constBegin(); it != m_cardContainers.constEnd(); ++it) {
+            it.value()->setFixedSize(280, 180);
+            auto *shadow = new QGraphicsDropShadowEffect();
+            shadow->setBlurRadius(20);
+            shadow->setOffset(0, 4);
+            shadow->setColor(QColor(0, 0, 0, 60));
+            it.value()->setGraphicsEffect(shadow);
+        }
+    });
+
+    startAnimation(anims);
 }

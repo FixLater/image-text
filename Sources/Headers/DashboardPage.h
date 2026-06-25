@@ -10,6 +10,11 @@
 #include <QTextEdit>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QPropertyAnimation>
+#include <QParallelAnimationGroup>
+#include <QPointer>
+#include <QTimer>
+#include <QSequentialAnimationGroup>
 
 struct ModuleCard {
     QString name;
@@ -39,6 +44,7 @@ public:
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 signals:
     void moduleClicked(const QString &moduleName);
@@ -47,12 +53,16 @@ signals:
     void fileServerToggled(bool start);
 
 private:
+    QWidget *m_cardArea;
     QGridLayout *m_gridLayout;
     QMap<QString, CardWidgets> m_cardWidgets;
     QMap<QString, int> m_cardTabIndices;
+    QMap<QString, QWidget *> m_cardContainers;
+    QStringList m_cardOrder;
     QWidget *createCard(const ModuleCard &card);
     QWidget *createTranslateCard();
     QWidget *createFileServerCard();
+    QWidget *createShellCard();
 
     QTextEdit *m_translateInput = nullptr;
     QLabel *m_translateResult = nullptr;
@@ -64,6 +74,27 @@ private:
     QLabel *m_serverAddressLabel = nullptr;
 
     void doTranslate(const QString &text);
+
+    QString m_expandedCardName;
+    bool m_isExpanded = false;
+
+    void expandCard(const QString &cardName);
+    void collapseCard();
+    void switchCard(const QString &cardName);
+
+    struct AnimCard {
+        QWidget *widget;
+        QRect startGeo;
+        QRect endGeo;
+    };
+    QTimer *m_animTimer = nullptr;
+    QList<AnimCard> m_animCards;
+    int m_animStep = 0;
+    int m_animTotalSteps = 20;
+    void startAnimation(const QList<AnimCard> &cards);
+    void animationTick();
+
+    QPointer<QParallelAnimationGroup> m_animGroup;
 };
 
 #endif // DASHBOARDPAGE_H
