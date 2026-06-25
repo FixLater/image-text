@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --build cmake-build-debug-mingw --target lovely)",
+      "Bash(\"D:/DevelopmentTool/QT/Tools/CMake_64/bin/cmake.exe\" --build \"D:/Hobby/c++/lovely/cmake-build-debug-mingw\" --target lovely)",
+      "Bash(export PATH=\"D:/DevelopmentTool/Toolbox/CLion/bin/mingw/bin:$PATH\")"
+    ]
+  }
+}

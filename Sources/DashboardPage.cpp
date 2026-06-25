@@ -52,6 +52,7 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
 
 void DashboardPage::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
+    if (m_isAnimating) return;
 
     if (m_isExpanded) {
         int areaW = m_cardArea->width();
@@ -607,38 +608,6 @@ void DashboardPage::doTranslate(const QString &text) {
     });
 }
 
-void DashboardPage::startAnimation(const QList<AnimCard> &cards) {
-    if (m_animTimer) {
-        m_animTimer->stop();
-        delete m_animTimer;
-    }
-    m_animCards = cards;
-    m_animStep = 0;
-    m_animTotalSteps = 20;
-    m_animTimer = new QTimer(this);
-    connect(m_animTimer, &QTimer::timeout, this, &DashboardPage::animationTick);
-    m_animTimer->start(18);
-}
-
-void DashboardPage::animationTick() {
-    m_animStep++;
-    double t = qMin(1.0, (double)m_animStep / m_animTotalSteps);
-    double ease = 1.0 - pow(1.0 - t, 3);
-
-    for (auto &ac : m_animCards) {
-        int x = ac.startGeo.x() + (ac.endGeo.x() - ac.startGeo.x()) * ease;
-        int y = ac.startGeo.y() + (ac.endGeo.y() - ac.startGeo.y()) * ease;
-        int w = ac.startGeo.width() + (ac.endGeo.width() - ac.startGeo.width()) * ease;
-        int h = ac.startGeo.height() + (ac.endGeo.height() - ac.startGeo.height()) * ease;
-        ac.widget->setGeometry(x, y, w, h);
-    }
-
-    if (m_animStep >= m_animTotalSteps) {
-        m_animTimer->stop();
-        m_animCards.clear();
-    }
-}
-
 void DashboardPage::expandCard(const QString &cardName) {
     if (m_isExpanded || !m_cardContainers.contains(cardName)) return;
 
@@ -656,39 +625,41 @@ void DashboardPage::expandCard(const QString &cardName) {
     int smallCardH = 130;
     int gap = 12;
 
-    QList<AnimCard> anims;
+    // Remove shadow effects before animation to avoid expensive repaints
+    for (auto it = m_cardContainers.constBegin(); it != m_cardContainers.constEnd(); ++it) {
+        it.value()->setGraphicsEffect(nullptr);
+        it.value()->setMinimumSize(0, 0);
+        it.value()->setMaximumSize(16777215, 16777215);
+    }
+
+    if (m_animGroup) m_animGroup->stop();
+    m_animGroup = new QParallelAnimationGroup(this);
 
     int leftIndex = 0;
     for (int i = 0; i < m_cardOrder.size(); ++i) {
-        if (m_cardOrder[i] == cardName) continue;
-
         auto *card = m_cardContainers[m_cardOrder[i]];
-        card->setGraphicsEffect(nullptr);
-        card->setMinimumSize(0, 0);
-        card->setMaximumSize(16777215, 16777215);
+        QRect endGeo;
+        if (m_cardOrder[i] == cardName) {
+            endGeo = QRect(leftW + padding * 2, 0, rightW, areaH);
+            card->raise();
+        } else {
+            endGeo = QRect(padding, leftIndex * (smallCardH + gap), leftW, smallCardH);
+            leftIndex++;
+        }
 
-        AnimCard ac;
-        ac.widget = card;
-        ac.startGeo = card->geometry();
-        ac.endGeo = QRect(padding, leftIndex * (smallCardH + gap), leftW, smallCardH);
-        anims.append(ac);
-
-        leftIndex++;
+        auto *anim = new QPropertyAnimation(card, "geometry");
+        anim->setDuration(280);
+        anim->setStartValue(card->geometry());
+        anim->setEndValue(endGeo);
+        anim->setEasingCurve(QEasingCurve::OutCubic);
+        m_animGroup->addAnimation(anim);
     }
 
-    auto *expandedCard = m_cardContainers[cardName];
-    expandedCard->setGraphicsEffect(nullptr);
-    expandedCard->setMinimumSize(0, 0);
-    expandedCard->setMaximumSize(16777215, 16777215);
-    expandedCard->raise();
-
-    AnimCard ac;
-    ac.widget = expandedCard;
-    ac.startGeo = expandedCard->geometry();
-    ac.endGeo = QRect(leftW + padding * 2, 0, rightW, areaH);
-    anims.append(ac);
-
-    startAnimation(anims);
+    m_isAnimating = true;
+    connect(m_animGroup.data(), &QParallelAnimationGroup::finished, this, [this]() {
+        m_isAnimating = false;
+    });
+    m_animGroup->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void DashboardPage::switchCard(const QString &cardName) {
@@ -705,31 +676,34 @@ void DashboardPage::switchCard(const QString &cardName) {
     int smallCardH = 130;
     int gap = 12;
 
-    QList<AnimCard> anims;
+    if (m_animGroup) m_animGroup->stop();
+    m_animGroup = new QParallelAnimationGroup(this);
 
     int leftIndex = 0;
     for (int i = 0; i < m_cardOrder.size(); ++i) {
         auto *card = m_cardContainers[m_cardOrder[i]];
-        card->setGraphicsEffect(nullptr);
-        card->setMinimumSize(0, 0);
-        card->setMaximumSize(16777215, 16777215);
-
-        AnimCard ac;
-        ac.widget = card;
-        ac.startGeo = card->geometry();
-
+        QRect endGeo;
         if (m_cardOrder[i] == cardName) {
-            ac.endGeo = QRect(leftW + padding * 2, 0, rightW, areaH);
+            endGeo = QRect(leftW + padding * 2, 0, rightW, areaH);
             card->raise();
         } else {
-            ac.endGeo = QRect(padding, leftIndex * (smallCardH + gap), leftW, smallCardH);
+            endGeo = QRect(padding, leftIndex * (smallCardH + gap), leftW, smallCardH);
             leftIndex++;
         }
 
-        anims.append(ac);
+        auto *anim = new QPropertyAnimation(card, "geometry");
+        anim->setDuration(280);
+        anim->setStartValue(card->geometry());
+        anim->setEndValue(endGeo);
+        anim->setEasingCurve(QEasingCurve::OutCubic);
+        m_animGroup->addAnimation(anim);
     }
 
-    startAnimation(anims);
+    m_isAnimating = true;
+    connect(m_animGroup.data(), &QParallelAnimationGroup::finished, this, [this]() {
+        m_isAnimating = false;
+    });
+    m_animGroup->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void DashboardPage::collapseCard() {
@@ -742,25 +716,35 @@ void DashboardPage::collapseCard() {
     int cols = qMax(1, (areaW + gap) / (cardW + gap));
     int startX = (areaW - cols * cardW - (cols - 1) * gap) / 2;
 
-    QList<AnimCard> anims;
-
-    for (int i = 0; i < m_cardOrder.size(); ++i) {
-        auto *card = m_cardContainers[m_cardOrder[i]];
-        card->setGraphicsEffect(nullptr);
-        int col = i % cols;
-        int row = i / cols;
-
-        AnimCard ac;
-        ac.widget = card;
-        ac.startGeo = card->geometry();
-        ac.endGeo = QRect(startX + col * (cardW + gap), row * (cardH + gap), cardW, cardH);
-        anims.append(ac);
+    // Remove shadow effects before animation
+    for (auto it = m_cardContainers.constBegin(); it != m_cardContainers.constEnd(); ++it) {
+        it.value()->setGraphicsEffect(nullptr);
     }
 
     m_isExpanded = false;
     m_expandedCardName.clear();
 
-    QTimer::singleShot(380, this, [this]() {
+    if (m_animGroup) m_animGroup->stop();
+    m_animGroup = new QParallelAnimationGroup(this);
+
+    for (int i = 0; i < m_cardOrder.size(); ++i) {
+        auto *card = m_cardContainers[m_cardOrder[i]];
+        int col = i % cols;
+        int row = i / cols;
+        QRect endGeo(startX + col * (cardW + gap), row * (cardH + gap), cardW, cardH);
+
+        auto *anim = new QPropertyAnimation(card, "geometry");
+        anim->setDuration(280);
+        anim->setStartValue(card->geometry());
+        anim->setEndValue(endGeo);
+        anim->setEasingCurve(QEasingCurve::OutCubic);
+        m_animGroup->addAnimation(anim);
+    }
+
+    m_isAnimating = true;
+    connect(m_animGroup.data(), &QParallelAnimationGroup::finished, this, [this]() {
+        m_isAnimating = false;
+        // Restore fixed sizes and shadow effects after animation completes
         for (auto it = m_cardContainers.constBegin(); it != m_cardContainers.constEnd(); ++it) {
             it.value()->setFixedSize(280, 180);
             auto *shadow = new QGraphicsDropShadowEffect();
@@ -770,6 +754,5 @@ void DashboardPage::collapseCard() {
             it.value()->setGraphicsEffect(shadow);
         }
     });
-
-    startAnimation(anims);
+    m_animGroup->start(QAbstractAnimation::DeleteWhenStopped);
 }

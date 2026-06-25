@@ -14,7 +14,6 @@
 #include <QParallelAnimationGroup>
 #include <QPointer>
 #include <QTimer>
-#include <QSequentialAnimationGroup>
 
 struct ModuleCard {
     QString name;
@@ -82,19 +81,9 @@ private:
     void collapseCard();
     void switchCard(const QString &cardName);
 
-    struct AnimCard {
-        QWidget *widget;
-        QRect startGeo;
-        QRect endGeo;
-    };
-    QTimer *m_animTimer = nullptr;
-    QList<AnimCard> m_animCards;
-    int m_animStep = 0;
-    int m_animTotalSteps = 20;
-    void startAnimation(const QList<AnimCard> &cards);
-    void animationTick();
-
+    bool m_isAnimating = false;
     QPointer<QParallelAnimationGroup> m_animGroup;
+
 };
 
 #endif // DASHBOARDPAGE_H
