@@ -10,6 +10,7 @@
 #include <QMessageBox>
 #include <QTextCursor>
 #include <QRegularExpression>
+#include <QFont>
 
 ShellManagerPage::ShellManagerPage(QWidget *parent)
     : QWidget(parent)
@@ -30,7 +31,7 @@ ShellManagerPage::~ShellManagerPage() {
 }
 
 QString ShellManagerPage::stripAnsi(const QString &text) {
-    static QRegularExpression ansiRegex("\\x1b\\[[0-9;]*[A-Za-z]|\\x1b\\][^\x07]*\x07|\\x1b\\([AB012]");
+    static QRegularExpression ansiRegex("\\x1b\\[[?!]?[0-9;]*[A-Za-z]|\\x1b\\][^\x07]*\x07|\\x1b\\([AB012]");
     QString result = text;
     result.remove(ansiRegex);
     result.replace("\r\n", "\n");
@@ -74,14 +75,14 @@ void ShellManagerPage::setupUI() {
 
     mainLayout->addWidget(m_navBar);
 
-    m_outputArea = new QTextBrowser();
-    m_outputArea->setReadOnly(true);
-    m_outputArea->setContextMenuPolicy(Qt::NoContextMenu);
-    m_outputArea->setOpenExternalLinks(false);
-    m_outputArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    m_outputArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_outputArea->setStyleSheet(
-        "QTextBrowser {"
+    m_terminal = new QPlainTextEdit();
+    m_terminal->setReadOnly(false);
+    m_terminal->setContextMenuPolicy(Qt::NoContextMenu);
+    m_terminal->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_terminal->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_terminal->setWordWrapMode(QTextOption::NoWrap);
+    m_terminal->setStyleSheet(
+        "QPlainTextEdit {"
         "  background-color: #0c0c0c; color: #cccccc; border: none;"
         "  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;"
         "  font-size: 10pt; padding: 8px 12px;"
@@ -92,70 +93,86 @@ void ShellManagerPage::setupUI() {
         "QScrollBar::handle:vertical:hover { background-color: #475569; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
     );
-    mainLayout->addWidget(m_outputArea, 1);
-
-    auto *inputBar = new QWidget();
-    inputBar->setObjectName("inputBar");
-    inputBar->setFixedHeight(36);
-    inputBar->setStyleSheet("#inputBar { background-color: #1a1b1e; border-top: 1px solid #36383d; }");
-    auto *inputLayout = new QHBoxLayout(inputBar);
-    inputLayout->setContentsMargins(12, 4, 12, 4);
-    inputLayout->setSpacing(0);
-
-    m_commandInput = new QLineEdit();
-    m_commandInput->setStyleSheet(
-        "QLineEdit {"
-        "  background-color: transparent; color: #cccccc; border: none;"
-        "  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;"
-        "  font-size: 10pt; padding: 0;"
-        "}"
-    );
-    m_commandInput->installEventFilter(this);
-    inputLayout->addWidget(m_commandInput, 1);
-
-    mainLayout->addWidget(inputBar);
+    m_terminal->installEventFilter(this);
+    mainLayout->addWidget(m_terminal, 1);
 }
 
 bool ShellManagerPage::eventFilter(QObject *obj, QEvent *event) {
-    if (obj == m_commandInput && event->type() == QEvent::KeyPress) {
+    if (obj == m_terminal && event->type() == QEvent::KeyPress) {
         auto *keyEvent = static_cast<QKeyEvent *>(event);
+
+        if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size())
+            return false;
+
+        auto &tab = m_tabs[m_activeTabIndex];
+        QTextCursor cursor = m_terminal->textCursor();
+        int currentPos = cursor.position();
+        int inputStart = tab.inputStartPos;
+
         if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
-            QString cmd = m_commandInput->text();
-            if (!cmd.isEmpty()) {
-                if (m_activeTabIndex >= 0 && m_activeTabIndex < m_tabs.size()) {
-                    auto &tab = m_tabs[m_activeTabIndex];
-                    tab.commandHistory.append(cmd);
-                    tab.historyIndex = tab.commandHistory.size();
-                    if (tab.pty && tab.pty->isRunning()) {
-                        tab.pty->write((cmd + "\n").toLocal8Bit());
-                    } else {
-                        startConnection();
-                    }
-                }
-            }
-            m_commandInput->clear();
-            return true;
-        } else if (keyEvent->key() == Qt::Key_Up) {
-            if (m_activeTabIndex >= 0 && m_activeTabIndex < m_tabs.size()) {
-                auto &tab = m_tabs[m_activeTabIndex];
-                if (!tab.commandHistory.isEmpty() && tab.historyIndex > 0) {
-                    tab.historyIndex--;
-                    m_commandInput->setText(tab.commandHistory[tab.historyIndex]);
-                }
-            }
-            return true;
-        } else if (keyEvent->key() == Qt::Key_Down) {
-            if (m_activeTabIndex >= 0 && m_activeTabIndex < m_tabs.size()) {
-                auto &tab = m_tabs[m_activeTabIndex];
-                if (tab.historyIndex < tab.commandHistory.size() - 1) {
-                    tab.historyIndex++;
-                    m_commandInput->setText(tab.commandHistory[tab.historyIndex]);
+            cursor.movePosition(QTextCursor::End);
+            QString inputText = m_terminal->toPlainText().mid(inputStart);
+            cursor.insertText("\n");
+            m_terminal->setTextCursor(cursor);
+
+            if (!inputText.isEmpty()) {
+                tab.commandHistory.append(inputText);
+                tab.historyIndex = tab.commandHistory.size();
+                if (tab.pty && tab.pty->isRunning()) {
+                    tab.pty->write((inputText + "\n").toUtf8());
                 } else {
-                    tab.historyIndex = tab.commandHistory.size();
-                    m_commandInput->clear();
+                    startConnection();
                 }
             }
+            tab.inputStartPos = m_terminal->toPlainText().size();
             return true;
+        }
+        else if (keyEvent->key() == Qt::Key_Up) {
+            if (!tab.commandHistory.isEmpty() && tab.historyIndex > 0) {
+                tab.historyIndex--;
+                QString oldCmd = tab.commandHistory[tab.historyIndex];
+                cursor.movePosition(QTextCursor::End);
+                cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, cursor.position() - inputStart);
+                cursor.removeSelectedText();
+                cursor.insertText(oldCmd);
+                m_terminal->setTextCursor(cursor);
+            }
+            return true;
+        }
+        else if (keyEvent->key() == Qt::Key_Down) {
+            if (tab.historyIndex < tab.commandHistory.size() - 1) {
+                tab.historyIndex++;
+                QString oldCmd = tab.commandHistory[tab.historyIndex];
+                cursor.movePosition(QTextCursor::End);
+                cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, cursor.position() - inputStart);
+                cursor.removeSelectedText();
+                cursor.insertText(oldCmd);
+                m_terminal->setTextCursor(cursor);
+            } else {
+                tab.historyIndex = tab.commandHistory.size();
+                cursor.movePosition(QTextCursor::End);
+                cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, cursor.position() - inputStart);
+                cursor.removeSelectedText();
+                m_terminal->setTextCursor(cursor);
+            }
+            return true;
+        }
+        else if (keyEvent->key() == Qt::Key_Left) {
+            if (currentPos <= inputStart) return true;
+        }
+        else if (keyEvent->key() == Qt::Key_Home) {
+            cursor.setPosition(inputStart);
+            m_terminal->setTextCursor(cursor);
+            return true;
+        }
+        else if (keyEvent->key() == Qt::Key_Backspace) {
+            if (currentPos <= inputStart) return true;
+        }
+        else {
+            if (currentPos < inputStart) {
+                cursor.movePosition(QTextCursor::End);
+                m_terminal->setTextCursor(cursor);
+            }
         }
     }
     return QWidget::eventFilter(obj, event);
@@ -180,11 +197,12 @@ QString ShellManagerPage::tabLogHtml(int index) const {
 void ShellManagerPage::addTab(const QString &name) {
     ShellTabState state;
     state.name = name.isEmpty() ? QString("终端 %1").arg(m_tabs.size() + 1) : name;
-    state.host = "127.0.0.1";
+    state.host = "123.57.80.217";
     state.port = 22;
     state.username = "root";
     state.isRemote = false;
     state.pty = nullptr;
+    state.inputStartPos = 0;
 
     m_tabs.append(state);
     switchTab(m_tabs.size() - 1);
@@ -229,7 +247,7 @@ void ShellManagerPage::connectToCurrentTab() {
 
 void ShellManagerPage::saveTabState() {
     if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size()) return;
-    m_tabs[m_activeTabIndex].outputBuffer = m_outputArea->toHtml();
+    m_tabs[m_activeTabIndex].outputBuffer = m_terminal->toPlainText();
 }
 
 void ShellManagerPage::loadTabState() {
@@ -237,9 +255,12 @@ void ShellManagerPage::loadTabState() {
     const auto &tab = m_tabs[m_activeTabIndex];
 
     if (!tab.outputBuffer.isEmpty()) {
-        m_outputArea->setHtml(tab.outputBuffer);
+        m_terminal->setPlainText(tab.outputBuffer);
+        QTextCursor cursor = m_terminal->textCursor();
+        cursor.setPosition(tab.inputStartPos);
+        m_terminal->setTextCursor(cursor);
     } else {
-        m_outputArea->clear();
+        m_terminal->clear();
     }
 
     updateBreadcrumb();
@@ -248,7 +269,7 @@ void ShellManagerPage::loadTabState() {
 }
 
 void ShellManagerPage::updateUIState() {
-    m_commandInput->setEnabled(!m_tabs.isEmpty());
+    m_terminal->setEnabled(!m_tabs.isEmpty());
 }
 
 void ShellManagerPage::updateBreadcrumb() {
@@ -277,23 +298,18 @@ void ShellManagerPage::appendOutput(const QString &text) {
     QString clean = stripAnsi(text);
     if (clean.isEmpty()) return;
 
-    QTextCursor cursor = m_outputArea->textCursor();
+    QTextCursor cursor = m_terminal->textCursor();
     cursor.movePosition(QTextCursor::End);
-    QTextCharFormat fmt;
-    fmt.setForeground(QColor("#cccccc"));
-
-    QStringList lines = clean.split("\n");
-    for (int i = 0; i < lines.size(); ++i) {
-        if (i > 0) cursor.insertBlock();
-        cursor.insertText(lines[i], fmt);
-    }
-
-    m_outputArea->setTextCursor(cursor);
-    m_outputArea->ensureCursorVisible();
+    cursor.insertText(clean);
+    m_terminal->setTextCursor(cursor);
 
     if (m_activeTabIndex >= 0 && m_activeTabIndex < m_tabs.size()) {
-        m_tabs[m_activeTabIndex].outputBuffer = m_outputArea->toHtml();
+        auto &tab = m_tabs[m_activeTabIndex];
+        tab.outputBuffer = m_terminal->toPlainText();
+        tab.inputStartPos = m_terminal->toPlainText().size();
     }
+
+    m_terminal->ensureCursorVisible();
 }
 
 void ShellManagerPage::setRunning(bool running) {
@@ -307,7 +323,10 @@ void ShellManagerPage::startConnection() {
 
     if (tab.pty && tab.pty->isRunning()) return;
 
-    m_outputArea->clear();
+    m_terminal->clear();
+    tab.inputStartPos = 0;
+    tab.outputBuffer.clear();
+
     tab.pty = new ConPtyProcess(this);
 
     connect(tab.pty, &ConPtyProcess::readyRead, this, [this](const QByteArray &data) {
@@ -318,7 +337,17 @@ void ShellManagerPage::startConnection() {
         if (idx < 0) return;
 
         if (m_activeTabIndex == idx) {
-            appendOutput(QString::fromLocal8Bit(data));
+            QString text = QString::fromUtf8(data);
+            appendOutput(text);
+
+            auto &tab = m_tabs[idx];
+            if (tab.isRemote && !tab.password.isEmpty() && !tab.passwordSent) {
+                static QRegularExpression passPrompt("(password|密码)\\s*[:：]", QRegularExpression::CaseInsensitiveOption);
+                if (passPrompt.match(text).hasMatch()) {
+                    tab.passwordSent = true;
+                    tab.pty->write((tab.password + "\n").toUtf8());
+                }
+            }
         }
     });
 
@@ -366,6 +395,7 @@ void ShellManagerPage::startConnection() {
     if (ok) {
         setRunning(true);
         updateBreadcrumb();
+        m_terminal->setFocus();
     }
 }
 
@@ -390,7 +420,7 @@ void ShellManagerPage::showNewConnectionDialog() {
     titleLabel->setStyleSheet("font-size: 12pt; font-weight: bold; color: #e2e8f0; margin-bottom: 8px;");
     layout->addRow(titleLabel);
 
-    auto *hostEdit = new QLineEdit("127.0.0.1");
+    auto *hostEdit = new QLineEdit("123.57.80.217");
     hostEdit->setPlaceholderText("IP 地址");
     layout->addRow("主机:", hostEdit);
 
@@ -401,7 +431,7 @@ void ShellManagerPage::showNewConnectionDialog() {
     auto *userEdit = new QLineEdit("root");
     layout->addRow("用户名:", userEdit);
 
-    auto *passEdit = new QLineEdit();
+    auto *passEdit = new QLineEdit("Lovely0814.");
     passEdit->setPlaceholderText("密码（可选，SSH密钥免密）");
     passEdit->setEchoMode(QLineEdit::Password);
     layout->addRow("密码:", passEdit);
@@ -450,6 +480,7 @@ void ShellManagerPage::onConnectConfirmed(const QString &host, int port, const Q
     state.password = pass;
     state.isRemote = true;
     state.pty = nullptr;
+    state.inputStartPos = 0;
 
     m_tabs.append(state);
     switchTab(m_tabs.size() - 1);

@@ -36,6 +36,7 @@ signals:
 
 public slots:
     void sendMessage(const QString &message);
+    void sendRawText(const QString &message);
     void sendBinaryMessage(const QByteArray &data);
     void sendImage(const QString &filePath);
 
@@ -48,7 +49,6 @@ private slots:
     void sendPing();
 
 private:
-    void sendRawText(const QString &message);
     void performHandshake();
     bool processBuffer();
     bool handleWebSocketFrame(const QByteArray &frame);

@@ -9,6 +9,7 @@
 #include "ConfigService.h"
 #include "StarBackground.h"
 #include <QVBoxLayout>
+#include <QRandomGenerator>
 #include <QHBoxLayout>
 #include <QMenu>
 #include <QMouseEvent>
@@ -108,6 +109,17 @@ void MainWindow::onSettingsClicked() {
     if (dlg.exec() == QDialog::Accepted) {
         m_websocketPage->refreshUrlFromSettings();
         m_fileServerPage->refreshFromSettings();
+
+        // 重新连接配置同步 WebSocket
+        const QString chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+        int tokenLen = SettingsDialog::wsJwtTokenLength();
+        QString token;
+        token.reserve(tokenLen);
+        for (int i = 0; i < tokenLen; i++) {
+            token.append(chars.at(QRandomGenerator::global()->bounded(chars.length())));
+        }
+        SettingsDialog::configService()->startWebSocketSync(SettingsDialog::wsUrl(), token);
+
         SettingsDialog::configService()->loadAll();
     }
 }
@@ -275,6 +287,18 @@ void MainWindow::initPages() {
             }
         });
         ui->onlineLabel->setToolTip("http://127.0.0.1:8200");
+
+        // 启动 WebSocket 配置同步
+        const QString chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+        int tokenLen = SettingsDialog::wsJwtTokenLength();
+        QString token;
+        token.reserve(tokenLen);
+        for (int i = 0; i < tokenLen; i++) {
+            token.append(chars.at(QRandomGenerator::global()->bounded(chars.length())));
+        }
+        SettingsDialog::configService()->startWebSocketSync(SettingsDialog::wsUrl(), token);
+
+        // HTTP 降级加载
         SettingsDialog::configService()->loadAll();
     }
     connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](int tabIndex, const QString &html) {

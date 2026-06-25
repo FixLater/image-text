@@ -2,7 +2,7 @@
 #define SHELLMANAGERPAGE_H
 
 #include <QWidget>
-#include <QTextBrowser>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -19,8 +19,10 @@ struct ShellTabState {
     QString username;
     QString password;
     bool isRemote;
+    bool passwordSent = false;
     ConPtyProcess *pty = nullptr;
     QString outputBuffer;
+    int inputStartPos = 0;
     QStringList commandHistory;
     int historyIndex = -1;
 };
@@ -69,8 +71,7 @@ private:
     QWidget *m_navBar;
     QLabel *m_breadcrumbLabel;
 
-    QTextBrowser *m_outputArea;
-    QLineEdit *m_commandInput;
+    QPlainTextEdit *m_terminal;
 
     QVector<ShellTabState> m_tabs;
     int m_activeTabIndex = -1;

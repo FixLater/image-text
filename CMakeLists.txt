@@ -26,6 +26,7 @@ set(SOURCES
     Sources/TableItemDelegate.cpp
     Sources/SettingsDialog.cpp
     Sources/ConfigService.cpp
+    Sources/ConfigSyncClient.cpp
     Sources/TranslationPage.cpp
     Sources/FileServerPage.cpp
     Sources/ShellManagerPage.cpp
@@ -47,6 +48,7 @@ set(HEADERS
     Sources/Headers/TableItemDelegate.h
     Sources/Headers/SettingsDialog.h
     Sources/Headers/ConfigService.h
+    Sources/Headers/ConfigSyncClient.h
     Sources/Headers/TranslationPage.h
     Sources/Headers/FileServerPage.h
     Sources/Headers/ShellManagerPage.h
