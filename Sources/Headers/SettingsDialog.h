@@ -15,6 +15,7 @@
 #include <QButtonGroup>
 #include <QMap>
 #include <QPoint>
+#include <QStringList>
 
 class ConfigService;
 
@@ -22,7 +23,7 @@ struct ConfigField {
     QString key;
     QString label;
     QString tooltip;
-    enum Type { String, Int, Bool, Choice } type;
+    enum Type { String, Int, Bool, Choice, DynamicChoice } type;
     QVariant defaultValue;
     QStringList choices;
 };
@@ -48,6 +49,8 @@ public:
     static int wsMaxReconnectAttempts();
     static int wsJwtTokenLength();
     static QString wsRoomId();
+    static bool wsAutoJoinDefaultRoom();
+    static QString wsDefaultRoomId();
 
     static bool exitWithoutReminder();
     static int closeAction();
@@ -69,10 +72,11 @@ private:
     bool m_dragging;
     QPoint m_dragPos;
     QLabel *m_serverStatusLabel = nullptr;
+    QComboBox *m_defaultRoomCombo = nullptr;
 
     void buildNav();
 
-    static QWidget *createModuleTab(const ConfigModule &module);
+    QWidget *createModuleTab(const ConfigModule &module);
     void applyDialogStyle();
 
     static QList<ConfigModule> buildModules();
@@ -80,6 +84,7 @@ private:
 private slots:
     void onSave();
     void onLoadFromServer(const QMap<QString, QString> &configs);
+    void onRoomListReceived(const QStringList &rooms);
 };
 
 #endif // SETTINGSDIALOG_H

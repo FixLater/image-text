@@ -197,7 +197,7 @@ QString ShellManagerPage::tabLogHtml(int index) const {
 void ShellManagerPage::addTab(const QString &name) {
     ShellTabState state;
     state.name = name.isEmpty() ? QString("终端 %1").arg(m_tabs.size() + 1) : name;
-    state.host = "123.57.80.217";
+    state.host = "127.0.0.1";
     state.port = 22;
     state.username = "root";
     state.isRemote = false;
@@ -420,7 +420,7 @@ void ShellManagerPage::showNewConnectionDialog() {
     titleLabel->setStyleSheet("font-size: 12pt; font-weight: bold; color: #e2e8f0; margin-bottom: 8px;");
     layout->addRow(titleLabel);
 
-    auto *hostEdit = new QLineEdit("123.57.80.217");
+    auto *hostEdit = new QLineEdit("127.0.0.1");
     hostEdit->setPlaceholderText("IP 地址");
     layout->addRow("主机:", hostEdit);
 

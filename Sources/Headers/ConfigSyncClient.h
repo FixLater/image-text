@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QMap>
 #include <QString>
+#include <QStringList>
 
 class QtWebSocketClient;
 
@@ -20,12 +21,14 @@ public:
 
     void requestSync();
     void pushUpdate(const QString &key, const QString &value);
+    void requestRoomList();
 
 signals:
     void connected();
     void disconnected();
     void configSynced(const QMap<QString, QString> &configs);
     void configUpdated(const QString &key, const QString &value);
+    void roomListReceived(const QStringList &rooms);
     void errorOccurred(const QString &error);
 
 private slots:

@@ -14,6 +14,10 @@
     <file>icons/shell.svg</file>
     <file>icons/dashboard.svg</file>
     <file>icons/sidebar.svg</file>
+    <file>icons/arrow_down.svg</file>
+    <file>icons/arrow_up.svg</file>
+    <file>icons/arrow_down_blue.svg</file>
+    <file>icons/arrow_up_blue.svg</file>
     <file>app_icon.jpg</file>
   </qresource>
 </RCC>

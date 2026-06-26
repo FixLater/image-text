@@ -13,6 +13,7 @@ struct WebSocketConfig {
     int pingIntervalMs = 30000;
     int reconnectIntervalMs = 5000;
     int maxReconnectAttempts = 500;
+    bool autoJoinRoom = true;  // 是否自动加入房间
 };
 
 class QtWebSocketClient : public QObject {

@@ -3,6 +3,7 @@
 #include "QtWebSocketClient.h"
 #include "ChatLogWidget.h"
 #include "SettingsDialog.h"
+#include "ConfigService.h"
 #include <QDragEnterEvent>
 #include <QMimeData>
 #include <QFileDialog>
@@ -17,6 +18,7 @@
 #include <QRandomGenerator>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include "TableItemDelegate.h"
 #include "StarBackground.h"
 
@@ -42,6 +44,47 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
 
     ui->statusLabel->setProperty("connected", false);
     updateStatusStyle();
+
+    // 添加房间列表下拉框和加入按钮
+    m_roomComboBox = new QComboBox(this);
+    m_roomComboBox->setObjectName("roomComboBox");
+    m_roomComboBox->setMinimumWidth(120);
+    m_roomComboBox->setPlaceholderText("房间列表");
+    m_roomComboBox->setEnabled(false);
+    m_roomComboBox->view()->setStyleSheet(
+        "QAbstractItemView {"
+        "  background-color: #252830;"
+        "  color: #e2e8f0;"
+        "  border: 1px solid #3a3f4b;"
+        "  border-radius: 6px;"
+        "  outline: none;"
+        "  padding: 2px;"
+        "  show-decoration-selected: none;"
+        "}"
+        "QAbstractItemView::item {"
+        "  padding: 2px 10px;"
+        "  border: none;"
+        "  min-height: 14px;"
+        "}"
+        "QAbstractItemView::item:selected {"
+        "  background-color: transparent;"
+        "  color: #e2e8f0;"
+        "}"
+        "QAbstractItemView::item:hover {"
+        "  background-color: #1e3a5f;"
+        "  color: #e2e8f0;"
+        "}"
+    );
+
+    auto *joinRoomBtn = new QPushButton("加入", this);
+    joinRoomBtn->setObjectName("joinRoomBtn");
+    joinRoomBtn->setFixedSize(50, 28);
+    joinRoomBtn->setEnabled(false);
+    connect(joinRoomBtn, &QPushButton::clicked, this, &WebSocketPage::onJoinRoomClicked);
+
+    // 在 connectButton 后面插入房间控件
+    ui->requestBarLayout->insertWidget(1, m_roomComboBox);
+    ui->requestBarLayout->insertWidget(2, joinRoomBtn);
 
     ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->tableView, &QTableView::customContextMenuRequested, this, &WebSocketPage::onContextMenuRequested);
@@ -115,6 +158,12 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
     );
     ui->tableView->hide();
     ui->selectFile->hide();
+
+    // 连接 ConfigService 的房间列表信号
+    if (SettingsDialog::configService()) {
+        connect(SettingsDialog::configService(), &ConfigService::roomListReceived,
+                this, &WebSocketPage::onRoomListReceived);
+    }
 
     addTab(SettingsDialog::wsUrl());
 }
@@ -366,6 +415,82 @@ void WebSocketPage::applyApiFoxStyle() {
         "#sendButton:pressed { background-color: #0284c7; }"
         "#sendButton:disabled { background-color: #36383d; color: #555; }"
 
+        "#roomComboBox {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #252830, stop:1 #1e2128);"
+        "  color: #e2e8f0;"
+        "  border: 1px solid #3a3f4b;"
+        "  border-radius: 8px;"
+        "  padding: 6px 12px;"
+        "  font-size: 9pt;"
+        "  min-width: 100px;"
+        "}"
+        "#roomComboBox:hover {"
+        "  border-color: #4a9eff;"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2a3040, stop:1 #232830);"
+        "}"
+        "#roomComboBox:disabled {"
+        "  background: #151820;"
+        "  color: #4a5568;"
+        "  border-color: #2d333b;"
+        "}"
+        "#roomComboBox::drop-down {"
+        "  border: none;"
+        "  width: 32px;"
+        "  background: transparent;"
+        "}"
+        "#roomComboBox::down-arrow {"
+        "  image: url(:/icons/arrow_down.svg);"
+        "  width: 12px; height: 12px;"
+        "}"
+        "#roomComboBox::down-arrow:on {"
+        "  image: url(:/icons/arrow_up.svg);"
+        "}"
+        "#roomComboBox QAbstractItemView {"
+        "  background-color: #252830;"
+        "  color: #e2e8f0;"
+        "  border: 1px solid #3a3f4b;"
+        "  border-radius: 6px;"
+        "  outline: none;"
+        "  padding: 2px;"
+        "  show-decoration-selected: none;"
+        "}"
+        "#roomComboBox::item {"
+        "  padding: 4px 10px;"
+        "  border: none;"
+        "  min-height: 18px;"
+        "}"
+        "#roomComboBox::item:selected {"
+        "  background-color: transparent;"
+        "  color: #e2e8f0;"
+        "}"
+        "#roomComboBox::item:hover {"
+        "  background-color: #1e3a5f;"
+        "  color: #e2e8f0;"
+        "}"
+
+        "#joinRoomBtn {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #34d399, stop:1 #10b981);"
+        "  color: #ffffff;"
+        "  border: none;"
+        "  border-radius: 8px;"
+        "  font-size: 9pt;"
+        "  font-weight: bold;"
+        "  padding: 6px 14px;"
+        "}"
+        "#joinRoomBtn:hover {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4ade80, stop:1 #34d399);"
+        "}"
+        "#joinRoomBtn:pressed {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #059669, stop:1 #047857);"
+        "}"
+        "#joinRoomBtn:disabled {"
+        "  background: #36383d;"
+        "  color: #555;"
+        "}"
+        "#joinRoomBtn:pressed { background-color: #059669; }"
+        "#joinRoomBtn:disabled { background-color: #36383d; color: #555; }"
+        "#joinRoomBtn:disabled { background-color: #36383d; color: #555; }"
+
         "#requestBar { background: transparent; }"
         "#statusLabel { font-size: 9pt; }"
 
@@ -435,6 +560,7 @@ void WebSocketPage::on_connectButton_clicked() {
     config.pingIntervalMs = SettingsDialog::wsPingIntervalMs();
     config.reconnectIntervalMs = SettingsDialog::wsReconnectIntervalMs();
     config.maxReconnectAttempts = SettingsDialog::wsMaxReconnectAttempts();
+    config.autoJoinRoom = SettingsDialog::wsAutoJoinDefaultRoom();
 
     tab.client = new QtWebSocketClient(url, config, this);
 
@@ -464,6 +590,9 @@ void WebSocketPage::onConnected() {
     if (tabIndex >= 0 && tabIndex < m_tabs.size()) {
         m_tabs[tabIndex].connecting = false;
     }
+
+    // 房间列表由 ConfigService (config_room 连接) 统一获取，通过信号同步到此处
+
     if (tabIndex == m_activeTabIndex) {
         ui->message->setEnabled(true);
         updateButtonStates(true);
@@ -485,6 +614,8 @@ void WebSocketPage::onDisconnected() {
         updateButtonStates(false);
         ui->statusLabel->setProperty("connected", false);
         updateStatusStyle();
+        m_roomComboBox->clear();
+        m_roomComboBox->setEnabled(false);
     }
     emit tabsChanged();
     emit statusChanged(false);
@@ -498,10 +629,27 @@ void WebSocketPage::onMessageReceived(const QString &message) {
     if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
         QJsonObject obj = doc.object();
         QString type = obj["type"].toString();
+        if (type == "joined") {
+            if (tabIndex == m_activeTabIndex) {
+                appendLog("已加入房间: " + obj["roomId"].toString(), "system", tabIndex);
+            }
+            return;
+        }
         if (type == "message" && obj.contains("content")) {
             QString content = obj["content"].toString();
             appendLog(content, "info", tabIndex);
             emit messageReceived(content);
+            return;
+        }
+        if (type == "room_list") {
+            QJsonArray roomsArray = obj["rooms"].toArray();
+            QStringList rooms;
+            for (const auto &room : roomsArray) {
+                rooms.append(room.toString());
+            }
+            if (tabIndex == m_activeTabIndex) {
+                onRoomListReceived(rooms);
+            }
             return;
         }
         if (obj.contains("msg")) {
@@ -739,6 +887,12 @@ void WebSocketPage::updateButtonStates(bool connected) {
             "QPushButton:hover { background-color: #38bdf8; }"
             "QPushButton:pressed { background-color: #0284c7; }"
         );
+        m_roomComboBox->clear();
+        m_roomComboBox->setEnabled(false);
+        auto *joinBtn = findChild<QPushButton *>("joinRoomBtn");
+        if (joinBtn) {
+            joinBtn->setEnabled(false);
+        }
     }
     updateSendButtonState();
 }
@@ -787,4 +941,48 @@ void WebSocketPage::resizeEvent(QResizeEvent *event) {
     if (m_starBg) {
         m_starBg->resize(size());
     }
+}
+
+void WebSocketPage::requestRoomList() {
+    if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size()) return;
+    auto &tab = m_tabs[m_activeTabIndex];
+    if (!tab.client || !tab.client->isConnected()) return;
+
+    QJsonObject msg;
+    msg["type"] = "room_list";
+    msg["roomId"] = "config_room";
+    tab.client->sendRawText(QJsonDocument(msg).toJson(QJsonDocument::Compact));
+}
+
+void WebSocketPage::onRoomListReceived(const QStringList &rooms) {
+    m_roomComboBox->clear();
+    m_roomComboBox->addItems(rooms);
+    m_roomComboBox->setEnabled(true);
+
+    // 设置默认选中房间
+    QString defaultRoom = SettingsDialog::wsDefaultRoomId();
+    int index = m_roomComboBox->findText(defaultRoom);
+    if (index >= 0) {
+        m_roomComboBox->setCurrentIndex(index);
+    }
+
+    // 启用加入按钮
+    auto *joinBtn = findChild<QPushButton *>("joinRoomBtn");
+    if (joinBtn) {
+        joinBtn->setEnabled(true);
+    }
+}
+
+void WebSocketPage::onJoinRoomClicked() {
+    if (m_activeTabIndex < 0 || m_activeTabIndex >= m_tabs.size()) return;
+    auto &tab = m_tabs[m_activeTabIndex];
+    if (!tab.client || !tab.client->isConnected()) return;
+
+    QString roomId = m_roomComboBox->currentText();
+    if (roomId.isEmpty()) return;
+
+    QJsonObject joinMsg;
+    joinMsg["type"] = "join";
+    joinMsg["roomId"] = roomId;
+    tab.client->sendRawText(QJsonDocument(joinMsg).toJson(QJsonDocument::Compact));
 }

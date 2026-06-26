@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QDebug>
 
 const QString ConfigSyncClient::CONFIG_ROOM_ID = "config_room";
 
@@ -15,6 +16,7 @@ ConfigSyncClient::ConfigSyncClient(const QString &url, const QString &jwtToken, 
     config.pingIntervalMs = 30000;
     config.reconnectIntervalMs = 5000;
     config.maxReconnectAttempts = 500;
+    config.autoJoinRoom = false;  // 禁用自动加入房间，由 ConfigSyncClient 自己管理
 
     m_client = new QtWebSocketClient(url, config, this);
 
@@ -54,14 +56,22 @@ void ConfigSyncClient::pushUpdate(const QString &key, const QString &value) {
     m_client->sendRawText(QJsonDocument(msg).toJson(QJsonDocument::Compact));
 }
 
+void ConfigSyncClient::requestRoomList() {
+    QJsonObject msg;
+    msg["type"] = "room_list";
+    msg["roomId"] = CONFIG_ROOM_ID;
+    m_client->sendRawText(QJsonDocument(msg).toJson(QJsonDocument::Compact));
+}
+
 void ConfigSyncClient::onConnected() {
+    // 连接成功后立即发射连接信号，更新状态
+    emit connected();
+
+    // 然后加入 config_room
     QJsonObject joinMsg;
     joinMsg["type"] = "join";
     joinMsg["roomId"] = CONFIG_ROOM_ID;
     m_client->sendRawText(QJsonDocument(joinMsg).toJson(QJsonDocument::Compact));
-
-    requestSync();
-    emit connected();
 }
 
 void ConfigSyncClient::onDisconnected() {
@@ -75,7 +85,14 @@ void ConfigSyncClient::onMessageReceived(const QString &message) {
     QJsonObject obj = doc.object();
     QString type = obj["type"].toString();
 
-    if (type == "config_sync") {
+    if (type == "joined") {
+        // 加入房间成功后，发送同步和房间列表请求
+        requestSync();
+        requestRoomList();
+    } else if (type == "error") {
+        // 服务器返回错误，记录日志
+        qDebug() << "ConfigSync error:" << obj["msg"].toString();
+    } else if (type == "config_sync") {
         QJsonObject data = obj["data"].toObject();
         QMap<QString, QString> configs;
         for (auto it = data.begin(); it != data.end(); ++it) {
@@ -86,6 +103,13 @@ void ConfigSyncClient::onMessageReceived(const QString &message) {
         QString key = obj["key"].toString();
         QString value = obj["value"].toString();
         emit configUpdated(key, value);
+    } else if (type == "room_list") {
+        QJsonArray roomsArray = obj["rooms"].toArray();
+        QStringList rooms;
+        for (const auto &room : roomsArray) {
+            rooms.append(room.toString());
+        }
+        emit roomListReceived(rooms);
     }
 }
 

@@ -4,6 +4,8 @@
 #include <QWidget>
 #include <QStandardItemModel>
 #include <QVector>
+#include <QComboBox>
+#include <QPushButton>
 #include "ChatLogWidget.h"
 
 class QtWebSocketClient;
@@ -67,6 +69,7 @@ private:
     int m_contextRow;
     ChatLogWidget *m_chatLog = nullptr;
     StarBackground *m_starBg = nullptr;
+    QComboBox *m_roomComboBox = nullptr;
 
     QVector<TabState> m_tabs;
     int m_activeTabIndex = -1;
@@ -86,6 +89,10 @@ private:
     void onMessageReceived(const QString &message);
     void onErrorOccurred(const QString &error);
     void onReconnecting(int attempt, int maxAttempts);
+
+    void requestRoomList();
+    void onRoomListReceived(const QStringList &rooms);
+    void onJoinRoomClicked();
 };
 
 #endif // WEBSOCKETPAGE_H

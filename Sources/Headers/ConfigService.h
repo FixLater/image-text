@@ -2,11 +2,8 @@
 #define CONFIGSERVICE_H
 
 #include <QObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QMap>
+#include <QStringList>
 
 class ConfigSyncClient;
 
@@ -28,17 +25,16 @@ public:
 signals:
     void allConfigsLoaded(const QMap<QString, QString> &configs);
     void serverStatusChanged(bool available);
+    void roomListReceived(const QStringList &rooms);
 
 private slots:
-    void onLoadFinished(QNetworkReply *reply);
-    void onSaveFinished(QNetworkReply *reply);
     void onWebSocketConnected();
     void onWebSocketDisconnected();
     void onConfigSynced(const QMap<QString, QString> &configs);
     void onConfigUpdated(const QString &key, const QString &value);
+    void onRoomListReceived(const QStringList &rooms);
 
 private:
-    QNetworkAccessManager *m_nam;
     QString m_baseUrl;
     bool m_serverAvailable = false;
     ConfigSyncClient *m_syncClient = nullptr;

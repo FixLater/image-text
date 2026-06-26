@@ -120,6 +120,14 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
                 m_serverStatusLabel->setStyleSheet("color: #64748b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
             }
         });
+        connect(configService(), &ConfigService::roomListReceived, this, &SettingsDialog::onRoomListReceived);
+
+        // 立即检查当前连接状态并更新 UI
+        if (configService()->isServerAvailable()) {
+            m_serverStatusLabel->setText("● 服务端已连接");
+            m_serverStatusLabel->setStyleSheet("color: #34d399; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+        }
+
         configService()->loadAll();
     }
 }
@@ -152,12 +160,14 @@ QList<ConfigModule> SettingsDialog::buildModules() {
     ws.name = "WebSocket";
     ws.icon = "⚡";
     ws.fields = {
-        {"ws/defaultUrl",       "默认地址",       "WebSocket 服务器地址",                ConfigField::String, "ws://123.57.80.217:8200/websocket"},
+        {"ws/defaultUrl",       "默认地址",       "WebSocket 服务器地址",                ConfigField::String, "ws://127.0.0.1:8200/websocket"},
         {"ws/pingIntervalMs",   "心跳间隔 (ms)","心跳包发送间隔（毫秒）", ConfigField::Int,    30000},
         {"ws/reconnectIntervalMs","重连间隔 (ms)","重连等待时间（毫秒）",  ConfigField::Int,    5000},
         {"ws/maxReconnectAttempts","最大重连次数","最大重连尝试次数",  ConfigField::Int,    500},
         {"ws/jwtTokenLength",   "令牌长度",   "随机令牌字符数",            ConfigField::Int,    7},
         {"ws/roomId",           "房间 ID",            "加入时发送的房间标识",            ConfigField::String, "log"},
+        {"ws/autoJoinDefaultRoom", "默认加入房间", "连接成功后自动加入默认房间",       ConfigField::Bool,   true},
+        {"ws/defaultRoomId",    "默认房间",           "下拉框默认选中的房间 ID",         ConfigField::DynamicChoice, "log"},
     };
     modules.append(ws);
 
@@ -251,6 +261,69 @@ QWidget *SettingsDialog::createModuleTab(const ConfigModule &module) {
                 radioLayout->addWidget(radio);
             }
             form->addRow(field.label + ":", groupWidget);
+        } else if (field.type == ConfigField::DynamicChoice) {
+            auto *combo = new QComboBox();
+            combo->setObjectName("settingsField");
+            combo->setMinimumWidth(280);
+            combo->setProperty("settingsKey", field.key);
+            combo->addItem(current.toString());
+            combo->setStyleSheet(
+                "QComboBox {"
+                "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #252830, stop:1 #1e2128);"
+                "  color: #e2e8f0;"
+                "  border: 1px solid #3a3f4b;"
+                "  border-radius: 8px;"
+                "  padding: 8px 14px;"
+                "  font-size: 9pt;"
+                "  min-width: 200px;"
+                "}"
+                "QComboBox:hover {"
+                "  border-color: #4a9eff;"
+                "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2a3040, stop:1 #232830);"
+                "}"
+                "QComboBox::drop-down {"
+                "  border: none;"
+                "  width: 36px;"
+                "  background: transparent;"
+                "}"
+                "QComboBox::down-arrow {"
+                "  image: url(:/icons/arrow_down.svg);"
+                "  width: 12px; height: 12px;"
+                "}"
+                "QComboBox::down-arrow:on {"
+                "  image: url(:/icons/arrow_up.svg);"
+                "}"
+            );
+            combo->view()->setStyleSheet(
+                "QAbstractItemView {"
+                "  background-color: #252830;"
+                "  color: #e2e8f0;"
+                "  border: 1px solid #3a3f4b;"
+                "  border-radius: 6px;"
+                "  outline: none;"
+                "  padding: 2px;"
+                "  show-decoration-selected: none;"
+                "}"
+                "QAbstractItemView::item {"
+                "  padding: 2px 10px;"
+                "  border: none;"
+                "  min-height: 14px;"
+                "}"
+                "QAbstractItemView::item:selected {"
+                "  background-color: transparent;"
+                "  color: #e2e8f0;"
+                "}"
+                "QAbstractItemView::item:hover {"
+                "  background-color: #1e3a5f;"
+                "  color: #e2e8f0;"
+                "}"
+            );
+            form->addRow(field.label + ":", combo);
+
+            // 保存 ws/defaultRoomId 的下拉框引用
+            if (field.key == "ws/defaultRoomId") {
+                m_defaultRoomCombo = combo;
+            }
         }
     }
 
@@ -286,6 +359,15 @@ void SettingsDialog::onLoadFromServer(const QMap<QString, QString> &configs) {
             } else if (auto *check = qobject_cast<QCheckBox *>(w)) {
                 check->setChecked(val == "true");
                 s->setValue(key, val == "true");
+            } else if (auto *combo = qobject_cast<QComboBox *>(w)) {
+                int idx = combo->findText(val);
+                if (idx >= 0) {
+                    combo->setCurrentIndex(idx);
+                } else {
+                    combo->addItem(val);
+                    combo->setCurrentText(val);
+                }
+                s->setValue(key, val);
             } else if (w->objectName() == "settingsRadioGroup") {
                 auto *btnGroup = w->findChild<QButtonGroup *>();
                 if (btnGroup) {
@@ -325,6 +407,9 @@ void SettingsDialog::onSave() {
             } else if (auto *check = qobject_cast<QCheckBox *>(w)) {
                 s->setValue(key, check->isChecked());
                 serverConfigs[key] = check->isChecked() ? "true" : "false";
+            } else if (auto *combo = qobject_cast<QComboBox *>(w)) {
+                s->setValue(key, combo->currentText());
+                serverConfigs[key] = combo->currentText();
             } else if (w->objectName() == "settingsRadioGroup") {
                 auto *btnGroup = w->findChild<QButtonGroup *>();
                 if (btnGroup) {
@@ -345,7 +430,7 @@ void SettingsDialog::onSave() {
 }
 
 QString SettingsDialog::wsUrl() {
-    return settings()->value("ws/defaultUrl", "ws://123.57.80.217:8200/websocket").toString();
+    return settings()->value("ws/defaultUrl", "ws://127.0.0.1:8200/websocket").toString();
 }
 
 int SettingsDialog::wsPingIntervalMs() {
@@ -366,6 +451,14 @@ int SettingsDialog::wsJwtTokenLength() {
 
 QString SettingsDialog::wsRoomId() {
     return settings()->value("ws/roomId", "log").toString();
+}
+
+bool SettingsDialog::wsAutoJoinDefaultRoom() {
+    return settings()->value("ws/autoJoinDefaultRoom", true).toBool();
+}
+
+QString SettingsDialog::wsDefaultRoomId() {
+    return settings()->value("ws/defaultRoomId", "log").toString();
 }
 
 bool SettingsDialog::exitWithoutReminder() {
@@ -487,24 +580,51 @@ void SettingsDialog::applyDialogStyle() {
         "#settingsRadio::indicator:hover { border-color: #36383d; }"
 
         "QComboBox {"
-        "  background-color: #191a1c; color: #e2e8f0;"
-        "  border: 1px solid #36383d; border-radius: 4px;"
-        "  padding: 6px 10px; font-size: 9pt;"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #252830, stop:1 #1e2128);"
+        "  color: #e2e8f0;"
+        "  border: 1px solid #3a3f4b;"
+        "  border-radius: 8px;"
+        "  padding: 8px 14px;"
+        "  font-size: 9pt;"
         "  min-width: 200px;"
         "}"
-        "QComboBox:hover { border-color: #475569; }"
-        "QComboBox::drop-down { border: none; width: 20px; }"
-        "QComboBox::down-arrow { image: none; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #94a3b8; margin-right: 6px; }"
+        "QComboBox:hover {"
+        "  border-color: #4a9eff;"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2a3040, stop:1 #232830);"
+        "}"
+        "QComboBox::drop-down {"
+        "  border: none;"
+        "  width: 36px;"
+        "  background: transparent;"
+        "}"
+        "QComboBox::down-arrow {"
+        "  image: url(:/icons/arrow_down.svg);"
+        "  width: 12px; height: 12px;"
+        "}"
+        "QComboBox::down-arrow:on {"
+        "  image: url(:/icons/arrow_up.svg);"
+        "}"
         "QComboBox QAbstractItemView {"
-        "  background-color: #191a1c; color: #e2e8f0;"
-        "  border: 1px solid #36383d; selection-background-color: #0ea5e9;"
-        "  padding: 4px;"
+        "  background-color: #252830;"
+        "  color: #e2e8f0;"
+        "  border: 1px solid #3a3f4b;"
+        "  border-radius: 6px;"
+        "  outline: none;"
+        "  padding: 2px;"
+        "  show-decoration-selected: none;"
         "}"
-        "QComboBox QAbstractItemView::item {"
-        "  padding: 6px 10px; min-height: 20px;"
+        "QComboBox::item {"
+        "  padding: 4px 10px;"
+        "  border: none;"
+        "  min-height: 18px;"
         "}"
-        "QComboBox QAbstractItemView::item:hover {"
-        "  background-color: #36383d; color: #e2e8f0;"
+        "QComboBox::item:selected {"
+        "  background-color: transparent;"
+        "  color: #e2e8f0;"
+        "}"
+        "QComboBox::item:hover {"
+        "  background-color: #1e3a5f;"
+        "  color: #e2e8f0;"
         "}"
 
         "#settingsSaveBtn {"
@@ -547,4 +667,18 @@ void SettingsDialog::mouseMoveEvent(QMouseEvent *event) {
 void SettingsDialog::mouseReleaseEvent(QMouseEvent *event) {
     m_dragging = false;
     QDialog::mouseReleaseEvent(event);
+}
+
+void SettingsDialog::onRoomListReceived(const QStringList &rooms) {
+    if (!m_defaultRoomCombo) return;
+
+    QString current = m_defaultRoomCombo->currentText();
+    m_defaultRoomCombo->clear();
+    m_defaultRoomCombo->addItems(rooms);
+
+    // 恢复之前选中的房间
+    int index = m_defaultRoomCombo->findText(current);
+    if (index >= 0) {
+        m_defaultRoomCombo->setCurrentIndex(index);
+    }
 }
