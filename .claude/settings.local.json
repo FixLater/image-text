@@ -11,7 +11,8 @@
       "Bash(ls CMakeLists.txt)",
       "Bash(\"/c/Program Files/CMake/bin/cmake.exe\" --version)",
       "Bash(cmd.exe /c \"where cmake\")",
-      "Bash(cmd.exe /c \"cd /d D:\\\\hobby\\\\c++\\\\lovely && cmake --build build 2>&1\")"
+      "Bash(cmd.exe /c \"cd /d D:\\\\hobby\\\\c++\\\\lovely && cmake --build build 2>&1\")",
+      "Bash(git checkout *)"
     ]
   }
 }

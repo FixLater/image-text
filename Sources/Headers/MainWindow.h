@@ -81,7 +81,6 @@ private:
     void onTabClicked(int index);
     void onTabCloseClicked(int index);
     void showTabBar(bool show);
-    void updateDashboardTabInfo();
     int m_activeTabIndex = -1;
     bool m_sidebarVisible = false;
 

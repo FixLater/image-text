@@ -120,12 +120,7 @@ void QtWebSocketClient::onReadyRead() {
             startPingTimer();
             emit connected();
 
-            if (m_config.autoJoinRoom) {
-                QJsonObject joinMsg;
-                joinMsg["type"] = "join";
-                joinMsg["roomId"] = SettingsDialog::wsDefaultRoomId();
-                sendRawText(QJsonDocument(joinMsg).toJson(QJsonDocument::Compact));
-            }
+            // 房间加入由 WebSocketPage 统一管理
         } else {
             QString reason = QString::fromUtf8(response.left(200));
             emit errorOccurred("Handshake failed: " + reason);

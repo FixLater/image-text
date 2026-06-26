@@ -267,7 +267,6 @@ void MainWindow::initPages() {
     ui->middleWidget->setStyleSheet("#middleWidget { background: transparent; }");
 
     connect(m_dashboardPage, &DashboardPage::moduleClicked, this, &MainWindow::onModuleClicked);
-    connect(m_websocketPage, &WebSocketPage::tabsChanged, this, &MainWindow::rebuildTabBar);
     connect(m_websocketPage, &WebSocketPage::statusChanged, this, [this](bool connected) {
         m_dashboardPage->updateCardStatus("websocket", connected);
     });
@@ -301,27 +300,9 @@ void MainWindow::initPages() {
         // HTTP 降级加载
         SettingsDialog::configService()->loadAll();
     }
-    connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](int tabIndex, const QString &html) {
-        m_dashboardPage->appendCardLog("websocket", tabIndex, html);
-    });
     connect(m_websocketPage, &WebSocketPage::messageReceived, this, &MainWindow::onNewMessage);
-    connect(m_dashboardPage, &DashboardPage::cardPrevClicked, this, [this](const QString &name) {
-        if (name == "websocket" && m_websocketPage) {
-            int idx = m_websocketPage->activeTabIndex() - 1;
-            if (idx >= 0) {
-                m_websocketPage->switchTab(idx);
-                updateDashboardTabInfo();
-            }
-        }
-    });
-    connect(m_dashboardPage, &DashboardPage::cardNextClicked, this, [this](const QString &name) {
-        if (name == "websocket" && m_websocketPage) {
-            int idx = m_websocketPage->activeTabIndex() + 1;
-            if (idx < m_websocketPage->tabCount()) {
-                m_websocketPage->switchTab(idx);
-                updateDashboardTabInfo();
-            }
-        }
+    connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](const QString &html) {
+        m_dashboardPage->appendCardLog("websocket", 0, html);
     });
     connect(m_fileServerPage, &FileServerPage::statusChanged, this, [this](bool running) {
         QString addr;
@@ -345,8 +326,6 @@ void MainWindow::initPages() {
     if (SettingsDialog::fileServerAutoStart()) {
         m_fileServerPage->onToggleServer();
     }
-
-    m_websocketPage->connectToCurrentTab();
 
     ui->backBtn->hide();
     ui->homeBtn->hide();
@@ -518,8 +497,7 @@ void MainWindow::navigateTo(const QString &moduleName) {
     if (moduleName == "websocket") {
         ui->stackedWidget->setCurrentWidget(m_websocketPage);
         updateBreadcrumb("仪表盘 › WebSocket");
-        ui->tabBarWidget->show();
-        rebuildTabBar();
+        ui->tabBarWidget->hide();
     } else if (moduleName == "translate") {
         ui->stackedWidget->setCurrentWidget(m_translationPage);
         updateBreadcrumb("仪表盘 › 翻译");
@@ -569,39 +547,21 @@ void MainWindow::showTabBar(bool show) {
     ui->tabAdd->setVisible(show);
 }
 
-void MainWindow::updateDashboardTabInfo() {
-    if (!m_websocketPage) return;
-    int count = m_websocketPage->tabCount();
-    int active = m_websocketPage->activeTabIndex();
-    if (active < 0 && count > 0) active = 0;
-    m_dashboardPage->updateCardTabInfo("websocket", active, count);
-    QString logHtml = m_websocketPage->tabLogHtml(active);
-    m_dashboardPage->setCardLogFromTab("websocket", logHtml);
-}
-
 void MainWindow::onTabAddClicked() {
-    if (ui->stackedWidget->currentWidget() == m_websocketPage && m_websocketPage) {
-        m_websocketPage->addTab();
-    } else if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
+    if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
         m_shellPage->addTab();
     }
 }
 
 void MainWindow::onTabClicked(int index) {
-    if (ui->stackedWidget->currentWidget() == m_websocketPage && m_websocketPage) {
-        m_websocketPage->switchTab(index);
-        m_activeTabIndex = index;
-    } else if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
+    if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
         m_shellPage->switchTab(index);
         m_activeTabIndex = index;
     }
 }
 
 void MainWindow::onTabCloseClicked(int index) {
-    if (ui->stackedWidget->currentWidget() == m_websocketPage && m_websocketPage) {
-        m_websocketPage->closeTab(index);
-        m_activeTabIndex = m_websocketPage->activeTabIndex();
-    } else if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
+    if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
         m_shellPage->closeTab(index);
         m_activeTabIndex = m_shellPage->activeTabIndex();
     }
@@ -620,21 +580,15 @@ void MainWindow::rebuildTabBar() {
         }
     }
 
-    bool isWs = (ui->stackedWidget->currentWidget() == m_websocketPage);
     bool isSh = (ui->stackedWidget->currentWidget() == m_shellPage);
 
     int count = 0;
     int active = -1;
-    QString icon = "⚡";
+    QString icon = ">_";
 
-    if (isWs && m_websocketPage) {
-        count = m_websocketPage->tabCount();
-        active = m_websocketPage->activeTabIndex();
-        icon = "⚡";
-    } else if (isSh && m_shellPage) {
+    if (isSh && m_shellPage) {
         count = m_shellPage->tabCount();
         active = m_shellPage->activeTabIndex();
-        icon = ">_";
     } else {
         return;
     }
@@ -665,8 +619,7 @@ void MainWindow::rebuildTabBar() {
         iconLabel->setStyleSheet("font-size: 10pt; background: transparent; border: none;");
 
         QString title;
-        if (isWs) title = m_websocketPage->tabTitle(i);
-        else title = m_shellPage->tabTitle(i);
+        title = m_shellPage->tabTitle(i);
 
         auto *textLabel = new QLabel(title, tabWidget);
         textLabel->setStyleSheet("font-size: 9pt; background: transparent; border: none;");
@@ -722,8 +675,6 @@ void MainWindow::rebuildTabBar() {
         "  font-size: 14pt; font-weight: bold; padding: 0 8px; border-radius: 4px; }"
         "QPushButton:hover { color: #d1d5db; background-color: #1f2937; }"
     );
-
-    if (isWs) updateDashboardTabInfo();
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {

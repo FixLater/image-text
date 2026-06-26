@@ -6,7 +6,7 @@
 #include <QJsonArray>
 #include <QDebug>
 
-const QString ConfigSyncClient::CONFIG_ROOM_ID = "config_room";
+const QString ConfigSyncClient::CONFIG_ROOM_ID = "config";
 
 ConfigSyncClient::ConfigSyncClient(const QString &url, const QString &jwtToken, QObject *parent)
     : QObject(parent)
@@ -16,8 +16,6 @@ ConfigSyncClient::ConfigSyncClient(const QString &url, const QString &jwtToken, 
     config.pingIntervalMs = 30000;
     config.reconnectIntervalMs = 5000;
     config.maxReconnectAttempts = 500;
-    config.autoJoinRoom = false;  // 禁用自动加入房间，由 ConfigSyncClient 自己管理
-
     m_client = new QtWebSocketClient(url, config, this);
 
     connect(m_client, &QtWebSocketClient::connected, this, &ConfigSyncClient::onConnected);

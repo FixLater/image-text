@@ -3,24 +3,12 @@
 
 #include <QWidget>
 #include <QStandardItemModel>
-#include <QVector>
 #include <QComboBox>
 #include <QPushButton>
 #include "ChatLogWidget.h"
 
 class QtWebSocketClient;
 class StarBackground;
-
-struct TabState {
-    QString url;
-    QString messageText;
-    QtWebSocketClient *client = nullptr;
-    QStandardItemModel *fileModel = nullptr;
-    QStringList logEntries;
-    QVector<ChatMessage> logMessages;
-    bool showFiles = false;
-    bool connecting = false;
-};
 
 namespace Ui {
     class WebSocketPage;
@@ -33,15 +21,7 @@ public:
     explicit WebSocketPage(QWidget *parent = nullptr);
     ~WebSocketPage() override;
 
-    int tabCount() const;
-    int activeTabIndex() const;
-    QString tabTitle(int index) const;
-    void addTab(const QString &url = QString());
-    void switchTab(int index);
-    void closeTab(int index);
     bool isConnected() const;
-    void connectToCurrentTab();
-    QString tabLogHtml(int index) const;
     void refreshUrlFromSettings();
 
 protected:
@@ -51,10 +31,9 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 signals:
-    void tabsChanged();
     void statusChanged(bool connected);
-    void logAppended(int tabIndex, const QString &html);
     void messageReceived(const QString &message);
+    void logAppended(const QString &html);
 
 private slots:
     void on_connectButton_clicked();
@@ -66,18 +45,21 @@ private slots:
 
 private:
     Ui::WebSocketPage *ui;
-    int m_contextRow;
+    int m_contextRow = -1;
     ChatLogWidget *m_chatLog = nullptr;
     StarBackground *m_starBg = nullptr;
     QComboBox *m_roomComboBox = nullptr;
+    QPushButton *m_joinRoomBtn = nullptr;
+    QString m_currentRoom;
 
-    QVector<TabState> m_tabs;
-    int m_activeTabIndex = -1;
+    QtWebSocketClient *m_client = nullptr;
+    QString m_url;
+    QString m_messageText;
+    QStandardItemModel *m_fileModel = nullptr;
+    QVector<ChatMessage> m_logMessages;
+    bool m_connecting = false;
 
-    void updateUIState();
-
-    void appendLog(const QString &message, const QString &type = "info", int tabIndex = -1);
-    int findTabIndexForClient(QObject *client) const;
+    void appendLog(const QString &message, const QString &type = "info");
     void updateButtonStates(bool connected);
     void addFiles(const QStringList &files);
     void applyApiFoxStyle();
@@ -90,7 +72,6 @@ private:
     void onErrorOccurred(const QString &error);
     void onReconnecting(int attempt, int maxAttempts);
 
-    void requestRoomList();
     void onRoomListReceived(const QStringList &rooms);
     void onJoinRoomClicked();
 };

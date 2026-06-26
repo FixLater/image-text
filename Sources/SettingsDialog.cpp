@@ -165,9 +165,8 @@ QList<ConfigModule> SettingsDialog::buildModules() {
         {"ws/reconnectIntervalMs","重连间隔 (ms)","重连等待时间（毫秒）",  ConfigField::Int,    5000},
         {"ws/maxReconnectAttempts","最大重连次数","最大重连尝试次数",  ConfigField::Int,    500},
         {"ws/jwtTokenLength",   "令牌长度",   "随机令牌字符数",            ConfigField::Int,    7},
-        {"ws/roomId",           "房间 ID",            "加入时发送的房间标识",            ConfigField::String, "log"},
         {"ws/autoJoinDefaultRoom", "默认加入房间", "连接成功后自动加入默认房间",       ConfigField::Bool,   true},
-        {"ws/defaultRoomId",    "默认房间",           "下拉框默认选中的房间 ID",         ConfigField::DynamicChoice, "log"},
+        {"ws/defaultRoomId",    "默认房间",           "下拉框默认选中的房间 ID",         ConfigField::DynamicChoice, ""},
     };
     modules.append(ws);
 
@@ -449,16 +448,12 @@ int SettingsDialog::wsJwtTokenLength() {
     return settings()->value("ws/jwtTokenLength", 7).toInt();
 }
 
-QString SettingsDialog::wsRoomId() {
-    return settings()->value("ws/roomId", "log").toString();
-}
-
 bool SettingsDialog::wsAutoJoinDefaultRoom() {
     return settings()->value("ws/autoJoinDefaultRoom", true).toBool();
 }
 
 QString SettingsDialog::wsDefaultRoomId() {
-    return settings()->value("ws/defaultRoomId", "log").toString();
+    return settings()->value("ws/defaultRoomId", "").toString();
 }
 
 bool SettingsDialog::exitWithoutReminder() {

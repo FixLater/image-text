@@ -48,7 +48,6 @@ public:
     static int wsReconnectIntervalMs();
     static int wsMaxReconnectAttempts();
     static int wsJwtTokenLength();
-    static QString wsRoomId();
     static bool wsAutoJoinDefaultRoom();
     static QString wsDefaultRoomId();
 
