@@ -230,6 +230,9 @@ void WebSocketPage::on_connectButton_clicked() {
     connect(m_client, &QtWebSocketClient::messageReceived, this, &WebSocketPage::onMessageReceived);
     connect(m_client, &QtWebSocketClient::errorOccurred, this, &WebSocketPage::onErrorOccurred);
     connect(m_client, &QtWebSocketClient::reconnecting, this, &WebSocketPage::onReconnecting);
+    connect(m_client, &QtWebSocketClient::chunkComplete, this, [this]() {
+        appendLog("文件发送完成", "sent");
+    });
     m_connecting = true;
     ui->connectButton->setEnabled(false);
     ui->connectButton->setText("连接中...");
@@ -311,6 +314,21 @@ void WebSocketPage::onMessageReceived(const QString &message) {
                 rooms.append(room.toString());
             }
             onRoomListReceived(rooms);
+            return;
+        }
+        if (type == "chunk_ack") {
+            if (m_client) m_client->handleChunkAck();
+            return;
+        }
+        if (type == "chunk_progress") {
+            int received = obj["received"].toInt();
+            int total = obj["total"].toInt();
+            appendLog(QString("分片进度: %1/%2").arg(received).arg(total), "system");
+            if (m_client) m_client->handleChunkAck();
+            return;
+        }
+        if (type == "file" && obj.contains("content")) {
+            appendLog("文件: " + obj["content"].toString(), "info");
             return;
         }
         if (obj.contains("msg")) {

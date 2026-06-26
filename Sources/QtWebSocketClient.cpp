@@ -275,28 +275,54 @@ QByteArray QtWebSocketClient::readAllFile(const QString &filePath) {
 }
 
 void QtWebSocketClient::sendImage(const QString &filePath) {
+    sendFileChunked(filePath);
+}
+
+void QtWebSocketClient::sendFileChunked(const QString &filePath) {
     if (!isConnected()) {
         emit errorOccurred("Not connected to server");
         return;
     }
 
     QFileInfo fileInfo(filePath);
-    QByteArray imageData = readAllFile(filePath);
-    if (imageData.isEmpty()) {
+    m_pendingChunkData = readAllFile(filePath);
+    if (m_pendingChunkData.isEmpty()) {
         emit errorOccurred("Failed to read file: " + filePath);
         return;
     }
 
+    m_pendingFileName = fileInfo.fileName();
+    m_pendingFileType = fileInfo.suffix();
+    m_totalChunks = (m_pendingChunkData.size() + CHUNK_SIZE - 1) / CHUNK_SIZE;
+    m_sentChunks = 0;
+
     QJsonObject meta;
     meta["type"] = "image_meta";
-    meta["fileName"] = fileInfo.fileName();
-    meta["fileType"] = fileInfo.suffix();
-    meta["fileSize"] = static_cast<qint64>(imageData.size());
+    meta["fileName"] = m_pendingFileName;
+    meta["fileType"] = m_pendingFileType;
+    meta["fileSize"] = static_cast<qint64>(m_pendingChunkData.size());
+    meta["totalSize"] = static_cast<qint64>(m_pendingChunkData.size());
+    meta["totalChunks"] = m_totalChunks;
 
-    QJsonDocument doc(meta);
-    sendRawText(doc.toJson(QJsonDocument::Compact));
+    sendRawText(QJsonDocument(meta).toJson(QJsonDocument::Compact));
+}
 
-    sendBinaryMessage(imageData);
+void QtWebSocketClient::handleChunkAck() {
+    if (m_sentChunks >= m_totalChunks) {
+        QJsonObject complete;
+        complete["type"] = "chunk_complete";
+        sendRawText(QJsonDocument(complete).toJson(QJsonDocument::Compact));
+        m_pendingChunkData.clear();
+        emit chunkComplete();
+        return;
+    }
+
+    int offset = m_sentChunks * CHUNK_SIZE;
+    int size = qMin(CHUNK_SIZE, m_pendingChunkData.size() - offset);
+    QByteArray chunk = m_pendingChunkData.mid(offset, size);
+    sendBinaryMessage(chunk);
+    m_sentChunks++;
+    emit chunkProgress(m_sentChunks, m_totalChunks);
 }
 
 void QtWebSocketClient::onDisconnected() {

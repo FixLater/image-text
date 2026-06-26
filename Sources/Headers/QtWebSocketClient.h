@@ -33,12 +33,16 @@ signals:
     void binaryMessageReceived(const QByteArray &message);
     void errorOccurred(const QString &errorString);
     void reconnecting(int attempt, int maxAttempts);
+    void chunkProgress(int sent, int total);
+    void chunkComplete();
 
 public slots:
     void sendMessage(const QString &message);
     void sendRawText(const QString &message);
     void sendBinaryMessage(const QByteArray &data);
     void sendImage(const QString &filePath);
+    void sendFileChunked(const QString &filePath);
+    void handleChunkAck();
 
 private slots:
     void onConnected();
@@ -69,6 +73,13 @@ private:
     QTimer *m_reconnectTimer;
     int m_reconnectAttempts;
     QByteArray m_receiveBuffer;
+
+    static constexpr int CHUNK_SIZE = 65536;
+    QByteArray m_pendingChunkData;
+    int m_totalChunks = 0;
+    int m_sentChunks = 0;
+    QString m_pendingFileName;
+    QString m_pendingFileType;
 };
 
 #endif // QT_WEBSOCKET_CLIENT_H
