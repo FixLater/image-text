@@ -166,15 +166,13 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
 
     m_fileModel = new QStandardItemModel(this);
 
-    // 连接 ConfigService 的房间列表信号
-    if (SettingsDialog::configService()) {
-        connect(SettingsDialog::configService(), &ConfigService::roomListReceived,
-                this, &WebSocketPage::onRoomListReceived);
-    }
-
     // 初始化 URL
     m_url = SettingsDialog::wsUrl();
     ui->location->setText(m_url);
+
+    // 连接 ConfigService 的房间列表信号（数据源来自配置 WebSocket）
+    connect(SettingsDialog::configService(), &ConfigService::roomListReceived,
+            this, &WebSocketPage::onRoomListReceived);
 }
 
 WebSocketPage::~WebSocketPage() {
@@ -253,16 +251,21 @@ void WebSocketPage::on_connectButton_clicked() {
 void WebSocketPage::onConnected() {
     m_connecting = false;
 
-    // 自动加入房间：优先使用下拉框选中的房间，否则使用默认房间
-    QString roomToJoin = m_roomComboBox->currentText();
-    if (roomToJoin.isEmpty()) {
-        roomToJoin = SettingsDialog::wsDefaultRoomId();
-    }
-    if (!roomToJoin.isEmpty()) {
-        QJsonObject joinMsg;
-        joinMsg["type"] = "join";
-        joinMsg["roomId"] = roomToJoin;
-        m_client->sendRawText(QJsonDocument(joinMsg).toJson(QJsonDocument::Compact));
+    // 仅当开启"默认加入房间"时才自动加入
+    if (SettingsDialog::wsAutoJoinDefaultRoom()) {
+        QString roomToJoin = m_roomComboBox->currentText();
+        if (roomToJoin.isEmpty()) {
+            roomToJoin = SettingsDialog::wsDefaultRoomId();
+        }
+        if (!roomToJoin.isEmpty()) {
+            QJsonObject joinMsg;
+            joinMsg["type"] = "join";
+            joinMsg["roomId"] = roomToJoin;
+            m_client->sendRawText(QJsonDocument(joinMsg).toJson(QJsonDocument::Compact));
+        }
+    } else {
+        // 不自动加入，启用加入按钮让用户手动选择
+        m_joinRoomBtn->setEnabled(!m_roomComboBox->currentText().isEmpty());
     }
 
     ui->message->setEnabled(true);
@@ -282,6 +285,7 @@ void WebSocketPage::onDisconnected() {
     ui->statusLabel->setProperty("connected", false);
     updateStatusStyle();
     m_currentRoom.clear();
+    m_roomListInitialized = false;
     m_joinRoomBtn->setText("加入");
     m_joinRoomBtn->setEnabled(false);
 
@@ -306,15 +310,6 @@ void WebSocketPage::onMessageReceived(const QString &message) {
             QString content = obj["content"].toString();
             appendLog(content, "info");
             emit messageReceived(content);
-            return;
-        }
-        if (type == "room_list") {
-            QJsonArray roomsArray = obj["rooms"].toArray();
-            QStringList rooms;
-            for (const auto &room : roomsArray) {
-                rooms.append(room.toString());
-            }
-            onRoomListReceived(rooms);
             return;
         }
         if (type == "chunk_ack") {
@@ -532,24 +527,32 @@ void WebSocketPage::resizeEvent(QResizeEvent *event) {
 }
 
 void WebSocketPage::onRoomListReceived(const QStringList &rooms) {
+    QString previousSelection = m_roomComboBox->currentText();
+
+    m_roomComboBox->blockSignals(true);
     m_roomComboBox->clear();
     m_roomComboBox->addItems(rooms);
 
-    // 设置默认选中房间
-    QString defaultRoom = SettingsDialog::wsDefaultRoomId();
-    int index = m_roomComboBox->findText(defaultRoom);
-    if (index >= 0) {
-        m_roomComboBox->setCurrentIndex(index);
+    if (!m_roomListInitialized) {
+        // 首次加载：选中设置中的默认房间
+        m_roomListInitialized = true;
+        QString defaultRoom = SettingsDialog::wsDefaultRoomId();
+        int index = m_roomComboBox->findText(defaultRoom);
+        if (index >= 0) {
+            m_roomComboBox->setCurrentIndex(index);
+        }
+    } else {
+        // 后续刷新：保持用户手动选择的房间
+        if (!previousSelection.isEmpty()) {
+            int index = m_roomComboBox->findText(previousSelection);
+            if (index >= 0) {
+                m_roomComboBox->setCurrentIndex(index);
+            }
+        }
     }
-    {
-        QFile lf(QCoreApplication::applicationDirPath() + "/ws_debug.log");
-        if (lf.open(QIODevice::Append | QIODevice::Text))
-            lf.write(QString("%1 [WSPage] rooms:%2 default:%3 idx:%4\n")
-                .arg(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"))
-                .arg(rooms.join(",")).arg(defaultRoom).arg(index).toUtf8());
-    }
+    m_roomComboBox->blockSignals(false);
 
-    // 如果当前房间已知，根据选中房间更新按钮状态
+    // 更新按钮状态
     if (!m_currentRoom.isEmpty()) {
         QString selected = m_roomComboBox->currentText();
         if (selected == m_currentRoom) {
@@ -560,7 +563,7 @@ void WebSocketPage::onRoomListReceived(const QStringList &rooms) {
             m_joinRoomBtn->setEnabled(true);
         }
     } else {
-        m_joinRoomBtn->setEnabled(true);
+        m_joinRoomBtn->setEnabled(!m_roomComboBox->currentText().isEmpty());
     }
 }
 

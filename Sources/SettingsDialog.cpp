@@ -690,21 +690,20 @@ void SettingsDialog::mouseReleaseEvent(QMouseEvent *event) {
 void SettingsDialog::onRoomListReceived(const QStringList &rooms) {
     if (!m_defaultRoomCombo) return;
 
+    // 记住当前选中值
     QString savedValue = settings()->value("ws/defaultRoomId", "").toString();
-    QString current = m_defaultRoomCombo->currentText();
+
+    // 用 blockSignals 防止 clear/addItems 过程中触发信号
+    m_defaultRoomCombo->blockSignals(true);
     m_defaultRoomCombo->clear();
     m_defaultRoomCombo->addItems(rooms);
+    m_defaultRoomCombo->blockSignals(false);
 
-    // 优先用设置中保存的值，其次用当前选中值
-    QString toSelect = savedValue.isEmpty() ? current : savedValue;
-    int index = m_defaultRoomCombo->findText(toSelect);
-    if (index >= 0) {
-        m_defaultRoomCombo->setCurrentIndex(index);
+    // 选中设置里保存的房间
+    if (!savedValue.isEmpty()) {
+        int index = m_defaultRoomCombo->findText(savedValue);
+        if (index >= 0) {
+            m_defaultRoomCombo->setCurrentIndex(index);
+        }
     }
-
-    QFile lf(QCoreApplication::applicationDirPath() + "/ws_debug.log");
-    if (lf.open(QIODevice::Append | QIODevice::Text))
-        lf.write(QString("%1 [Settings] rooms:%2 saved:%3 current:%4 select:%5 idx:%6\n")
-            .arg(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"))
-            .arg(rooms.join(",")).arg(savedValue).arg(current).arg(toSelect).arg(index).toUtf8());
 }

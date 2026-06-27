@@ -58,6 +58,7 @@ private:
     QStandardItemModel *m_fileModel = nullptr;
     QVector<ChatMessage> m_logMessages;
     bool m_connecting = false;
+    bool m_roomListInitialized = false;
 
     void appendLog(const QString &message, const QString &type = "info");
     void updateButtonStates(bool connected);
