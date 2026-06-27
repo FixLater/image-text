@@ -22,6 +22,8 @@ ConfigSyncClient::ConfigSyncClient(const QString &url, const QString &jwtToken, 
     connect(m_client, &QtWebSocketClient::disconnected, this, &ConfigSyncClient::onDisconnected);
     connect(m_client, &QtWebSocketClient::messageReceived, this, &ConfigSyncClient::onMessageReceived);
     connect(m_client, &QtWebSocketClient::errorOccurred, this, &ConfigSyncClient::onErrorOccurred);
+    connect(m_client, &QtWebSocketClient::reconnecting, this, &ConfigSyncClient::reconnecting);
+    connect(m_client, &QtWebSocketClient::reconnectCountdown, this, &ConfigSyncClient::reconnectCountdown);
 }
 
 ConfigSyncClient::~ConfigSyncClient() {

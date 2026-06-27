@@ -40,6 +40,8 @@ void ConfigService::startWebSocketSync(const QString &wsUrl, const QString &jwtT
     connect(m_syncClient, &ConfigSyncClient::configSynced, this, &ConfigService::onConfigSynced);
     connect(m_syncClient, &ConfigSyncClient::configUpdated, this, &ConfigService::onConfigUpdated);
     connect(m_syncClient, &ConfigSyncClient::roomListReceived, this, &ConfigService::onRoomListReceived);
+    connect(m_syncClient, &ConfigSyncClient::reconnecting, this, &ConfigService::reconnecting);
+    connect(m_syncClient, &ConfigSyncClient::reconnectCountdown, this, &ConfigService::reconnectCountdown);
 
     m_syncClient->connectToServer();
 }
@@ -62,7 +64,6 @@ void ConfigService::onWebSocketConnected() {
 }
 
 void ConfigService::onWebSocketDisconnected() {
-    if (!m_serverAvailable) return;
     m_serverAvailable = false;
     emit serverStatusChanged(false);
 }

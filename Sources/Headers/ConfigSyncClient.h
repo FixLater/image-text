@@ -30,6 +30,8 @@ signals:
     void configUpdated(const QString &key, const QString &value);
     void roomListReceived(const QStringList &rooms);
     void errorOccurred(const QString &error);
+    void reconnecting(int attempt, int maxAttempts);
+    void reconnectCountdown(int secondsRemaining, int attempt, int maxAttempts);
 
 private slots:
     void onConnected();

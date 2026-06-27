@@ -26,6 +26,8 @@ signals:
     void allConfigsLoaded(const QMap<QString, QString> &configs);
     void serverStatusChanged(bool available);
     void roomListReceived(const QStringList &rooms);
+    void reconnecting(int attempt, int maxAttempts);
+    void reconnectCountdown(int secondsRemaining, int attempt, int maxAttempts);
 
 private slots:
     void onWebSocketConnected();

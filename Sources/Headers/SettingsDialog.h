@@ -72,6 +72,8 @@ private:
     QPoint m_dragPos;
     QLabel *m_serverStatusLabel = nullptr;
     QComboBox *m_defaultRoomCombo = nullptr;
+    QTimer *m_connectingTimer = nullptr;
+    int m_connectingDots = 0;
 
     void buildNav();
 

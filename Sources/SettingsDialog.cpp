@@ -9,6 +9,9 @@
 #include <QMouseEvent>
 #include <QIcon>
 #include <QCoreApplication>
+#include <QFile>
+#include <QDateTime>
+#include <QTimer>
 
 static ConfigService *s_configService = nullptr;
 
@@ -42,10 +45,18 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     titleLayout->addWidget(titleLabel);
     titleLayout->addStretch();
 
-    m_serverStatusLabel = new QLabel("● 服务端未连接", titleBar);
-    m_serverStatusLabel->setStyleSheet("color: #64748b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+    m_serverStatusLabel = new QLabel("● 连接中", titleBar);
+    m_serverStatusLabel->setStyleSheet("color: #f59e0b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
     m_serverStatusLabel->setToolTip("http://127.0.0.1:8200");
     titleLayout->addWidget(m_serverStatusLabel);
+
+    // 连接中动态省略号
+    m_connectingTimer = new QTimer(this);
+    connect(m_connectingTimer, &QTimer::timeout, this, [this]() {
+        m_connectingDots = (m_connectingDots + 1) % 4;
+        m_serverStatusLabel->setText(QString("● 连接中%1").arg(QString(m_connectingDots, '.')));
+    });
+    m_connectingTimer->start(500);
 
     auto *closeBtn = new QPushButton(titleBar);
     closeBtn->setObjectName("settingsCloseBtn");
@@ -112,19 +123,31 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
     if (configService()) {
         connect(configService(), &ConfigService::allConfigsLoaded, this, &SettingsDialog::onLoadFromServer);
         connect(configService(), &ConfigService::serverStatusChanged, this, [this](const bool available) {
+            if (m_connectingTimer) m_connectingTimer->stop();
             if (available) {
-                m_serverStatusLabel->setText("● 服务端已连接");
+                m_serverStatusLabel->setText("● 已连接");
                 m_serverStatusLabel->setStyleSheet("color: #34d399; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
             } else {
-                m_serverStatusLabel->setText("● 服务端未连接");
-                m_serverStatusLabel->setStyleSheet("color: #64748b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+                m_serverStatusLabel->setText("● 连接失败");
+                m_serverStatusLabel->setStyleSheet("color: #ef4444; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
             }
+        });
+        connect(configService(), &ConfigService::reconnecting, this, [this](int attempt, int maxAttempts) {
+            if (m_connectingTimer) m_connectingTimer->stop();
+            m_serverStatusLabel->setText(QString("● 正在重连... (%1/%2)").arg(attempt).arg(maxAttempts));
+            m_serverStatusLabel->setStyleSheet("color: #f59e0b; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
+        });
+        connect(configService(), &ConfigService::reconnectCountdown, this, [this](int secondsRemaining, int attempt, int maxAttempts) {
+            if (m_connectingTimer) m_connectingTimer->stop();
+            m_serverStatusLabel->setText(QString("● %1秒后重连 (%2/%3)").arg(secondsRemaining).arg(attempt).arg(maxAttempts));
+            m_serverStatusLabel->setStyleSheet("color: #ef4444; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
         });
         connect(configService(), &ConfigService::roomListReceived, this, &SettingsDialog::onRoomListReceived);
 
         // 立即检查当前连接状态并更新 UI
         if (configService()->isServerAvailable()) {
-            m_serverStatusLabel->setText("● 服务端已连接");
+            if (m_connectingTimer) m_connectingTimer->stop();
+            m_serverStatusLabel->setText("● 已连接");
             m_serverStatusLabel->setStyleSheet("color: #34d399; font-size: 8pt; background: transparent; border: none; margin-right: 8px;");
         }
 
@@ -667,13 +690,21 @@ void SettingsDialog::mouseReleaseEvent(QMouseEvent *event) {
 void SettingsDialog::onRoomListReceived(const QStringList &rooms) {
     if (!m_defaultRoomCombo) return;
 
+    QString savedValue = settings()->value("ws/defaultRoomId", "").toString();
     QString current = m_defaultRoomCombo->currentText();
     m_defaultRoomCombo->clear();
     m_defaultRoomCombo->addItems(rooms);
 
-    // 恢复之前选中的房间
-    int index = m_defaultRoomCombo->findText(current);
+    // 优先用设置中保存的值，其次用当前选中值
+    QString toSelect = savedValue.isEmpty() ? current : savedValue;
+    int index = m_defaultRoomCombo->findText(toSelect);
     if (index >= 0) {
         m_defaultRoomCombo->setCurrentIndex(index);
     }
+
+    QFile lf(QCoreApplication::applicationDirPath() + "/ws_debug.log");
+    if (lf.open(QIODevice::Append | QIODevice::Text))
+        lf.write(QString("%1 [Settings] rooms:%2 saved:%3 current:%4 select:%5 idx:%6\n")
+            .arg(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"))
+            .arg(rooms.join(",")).arg(savedValue).arg(current).arg(toSelect).arg(index).toUtf8());
 }

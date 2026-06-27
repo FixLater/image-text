@@ -33,6 +33,7 @@ signals:
     void binaryMessageReceived(const QByteArray &message);
     void errorOccurred(const QString &errorString);
     void reconnecting(int attempt, int maxAttempts);
+    void reconnectCountdown(int secondsRemaining, int attempt, int maxAttempts);
     void chunkProgress(int sent, int total);
     void chunkComplete();
 
@@ -71,7 +72,10 @@ private:
     WebSocketConfig m_config;
     QTimer *m_pingTimer;
     QTimer *m_reconnectTimer;
+    QTimer *m_connectTimeoutTimer;
+    QTimer *m_reconnectCountdownTimer;
     int m_reconnectAttempts;
+    int m_reconnectCountdownSeconds;
     QByteArray m_receiveBuffer;
 
     static constexpr int CHUNK_SIZE = 65536;

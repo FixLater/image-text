@@ -11,6 +11,8 @@
 #include <QStandardItem>
 #include <QMenu>
 #include <QDateTime>
+#include <QCoreApplication>
+#include <QFile>
 #include <QRegularExpression>
 #include <QTextCursor>
 #include <QFileInfo>
@@ -48,7 +50,6 @@ WebSocketPage::WebSocketPage(QWidget *parent) : QWidget(parent),
     m_roomComboBox = new QComboBox(this);
     m_roomComboBox->setObjectName("roomComboBox");
     m_roomComboBox->setMinimumWidth(120);
-    m_roomComboBox->setPlaceholderText("房间列表");
     m_roomComboBox->view()->setStyleSheet(
         "QAbstractItemView {"
         "  background-color: #252830;"
@@ -539,6 +540,13 @@ void WebSocketPage::onRoomListReceived(const QStringList &rooms) {
     int index = m_roomComboBox->findText(defaultRoom);
     if (index >= 0) {
         m_roomComboBox->setCurrentIndex(index);
+    }
+    {
+        QFile lf(QCoreApplication::applicationDirPath() + "/ws_debug.log");
+        if (lf.open(QIODevice::Append | QIODevice::Text))
+            lf.write(QString("%1 [WSPage] rooms:%2 default:%3 idx:%4\n")
+                .arg(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"))
+                .arg(rooms.join(",")).arg(defaultRoom).arg(index).toUtf8());
     }
 
     // 如果当前房间已知，根据选中房间更新按钮状态

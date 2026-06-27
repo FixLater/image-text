@@ -1,7 +1,17 @@
 #include "QtWebSocketClient.h"
 #include "SettingsDialog.h"
+#include <QDebug>
 #include <QRandomGenerator>
 #include <QFile>
+#include <QCoreApplication>
+#include <QDateTime>
+
+static void wsLog(const QString &msg) {
+    QFile f(QCoreApplication::applicationDirPath() + "/ws_debug.log");
+    if (f.open(QIODevice::Append | QIODevice::Text)) {
+        f.write(QDateTime::currentDateTime().toString("hh:mm:ss.zzz").toUtf8() + " " + msg.toUtf8() + "\n");
+    }
+}
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,7 +25,10 @@ QtWebSocketClient::QtWebSocketClient(const QString &url, const WebSocketConfig &
     , m_config(config)
     , m_pingTimer(new QTimer(this))
     , m_reconnectTimer(new QTimer(this))
+    , m_connectTimeoutTimer(new QTimer(this))
+    , m_reconnectCountdownTimer(new QTimer(this))
     , m_reconnectAttempts(0)
+    , m_reconnectCountdownSeconds(0)
 {
     QUrl parsedUrl(url);
     m_host = parsedUrl.host();
@@ -35,28 +48,51 @@ QtWebSocketClient::QtWebSocketClient(const QString &url, const WebSocketConfig &
             this, &QtWebSocketClient::onErrorOccurred);
     connect(m_reconnectTimer, &QTimer::timeout, this, &QtWebSocketClient::attemptReconnect);
     connect(m_pingTimer, &QTimer::timeout, this, &QtWebSocketClient::sendPing);
+    m_connectTimeoutTimer->setSingleShot(true);
+    connect(m_connectTimeoutTimer, &QTimer::timeout, this, [this]() {
+        wsLog(QString("[WS] TIMEOUT fired, state:%1 handshake:%2").arg(m_socket->state()).arg(m_handshakeComplete));
+        if (m_socket->state() == QAbstractSocket::ConnectingState ||
+            (m_socket->state() == QAbstractSocket::ConnectedState && !m_handshakeComplete)) {
+            wsLog("[WS] TIMEOUT -> aborting");
+            m_socket->abort();
+        }
+    });
+    connect(m_reconnectCountdownTimer, &QTimer::timeout, this, [this]() {
+        if (m_reconnectCountdownSeconds > 0) {
+            m_reconnectCountdownSeconds--;
+            wsLog(QString("[WS] countdown:%1 attempts:%2").arg(m_reconnectCountdownSeconds).arg(m_reconnectAttempts));
+            emit reconnectCountdown(m_reconnectCountdownSeconds, m_reconnectAttempts, m_config.maxReconnectAttempts);
+        }
+    });
 }
 
 QtWebSocketClient::~QtWebSocketClient() {
     m_pingTimer->stop();
     m_reconnectTimer->stop();
+    m_connectTimeoutTimer->stop();
+    m_reconnectCountdownTimer->stop();
     if (m_socket->state() != QAbstractSocket::UnconnectedState) {
         m_socket->disconnectFromHost();
     }
 }
 
 void QtWebSocketClient::connectToServer() {
+    wsLog(QString("[WS] connectToServer, state:%1 host:%2 port:%3").arg(m_socket->state()).arg(m_host).arg(m_port));
     if (m_socket->state() == QAbstractSocket::UnconnectedState) {
         m_reconnectAttempts = 0;
         m_manualDisconnect = false;
         m_receiveBuffer.clear();
         m_socket->connectToHost(m_host, m_port.toInt());
+        m_connectTimeoutTimer->start(5000);
+        wsLog("[WS] connectToHost called, timeout 5s started");
     }
 }
 
 void QtWebSocketClient::disconnectFromServer() {
     m_pingTimer->stop();
     m_reconnectTimer->stop();
+    m_connectTimeoutTimer->stop();
+    m_reconnectCountdownTimer->stop();
     m_manualDisconnect = true;
 
     if (isConnected()) {
@@ -76,9 +112,14 @@ bool QtWebSocketClient::isConnected() const {
 }
 
 void QtWebSocketClient::onConnected() {
+    wsLog(QString("[WS] onConnected(TCP), state:%1").arg(m_socket->state()));
+    m_reconnectCountdownTimer->stop();
     if (m_isWebSocket) {
         performHandshake();
+        // 重启超时计时器，覆盖 WebSocket 握手阶段
+        m_connectTimeoutTimer->start(5000);
     } else {
+        m_connectTimeoutTimer->stop();
         m_handshakeComplete = true;
         m_reconnectAttempts = 0;
         m_reconnectTimer->stop();
@@ -114,15 +155,16 @@ void QtWebSocketClient::onReadyRead() {
         m_receiveBuffer.remove(0, headerEnd + 4);
 
         if (response.contains(" 101 ") || response.startsWith("HTTP/1.1 101")) {
+            wsLog("[WS] Handshake OK (101)");
+            m_connectTimeoutTimer->stop();
             m_handshakeComplete = true;
             m_reconnectAttempts = 0;
             m_reconnectTimer->stop();
             startPingTimer();
             emit connected();
-
-            // 房间加入由 WebSocketPage 统一管理
         } else {
             QString reason = QString::fromUtf8(response.left(200));
+            wsLog("[WS] Handshake FAILED: " + reason);
             emit errorOccurred("Handshake failed: " + reason);
             m_socket->disconnectFromHost();
         }
@@ -326,22 +368,41 @@ void QtWebSocketClient::handleChunkAck() {
 }
 
 void QtWebSocketClient::onDisconnected() {
+    wsLog(QString("[WS] onDisconnected, manual:%1 attempts:%2").arg(m_manualDisconnect).arg(m_reconnectAttempts));
     m_pingTimer->stop();
+    m_connectTimeoutTimer->stop();
     m_handshakeComplete = false;
     m_receiveBuffer.clear();
     emit disconnected();
 
     if (!m_manualDisconnect && m_config.reconnectIntervalMs > 0 && m_config.maxReconnectAttempts > 0) {
+        m_reconnectCountdownSeconds = m_config.reconnectIntervalMs / 1000;
+        emit reconnectCountdown(m_reconnectCountdownSeconds, m_reconnectAttempts, m_config.maxReconnectAttempts);
+        m_reconnectCountdownTimer->start(1000);
         m_reconnectTimer->start(m_config.reconnectIntervalMs);
     }
 }
 
 void QtWebSocketClient::onErrorOccurred(QAbstractSocket::SocketError error) {
-    Q_UNUSED(error)
+    wsLog(QString("[WS] onErrorOccurred:%1 %2 state:%3").arg(error).arg(m_socket->errorString()).arg(m_socket->state()));
     emit errorOccurred(m_socket->errorString());
+
+    // 连接被拒绝等场景，socket 直接变成 UnconnectedState，不会触发 onDisconnected
+    // 所以在这里也启动重连逻辑
+    if (m_socket->state() == QAbstractSocket::UnconnectedState && !m_manualDisconnect
+        && m_config.reconnectIntervalMs > 0 && m_config.maxReconnectAttempts > 0) {
+        m_connectTimeoutTimer->stop();
+        m_reconnectCountdownSeconds = m_config.reconnectIntervalMs / 1000;
+        emit reconnectCountdown(m_reconnectCountdownSeconds, m_reconnectAttempts, m_config.maxReconnectAttempts);
+        m_reconnectCountdownTimer->start(1000);
+        m_reconnectTimer->start(m_config.reconnectIntervalMs);
+        wsLog(QString("[WS] onErrorOccurred -> starting reconnect countdown, %1s").arg(m_reconnectCountdownSeconds));
+    }
 }
 
 void QtWebSocketClient::attemptReconnect() {
+    wsLog(QString("[WS] attemptReconnect, attempts:%1 max:%2").arg(m_reconnectAttempts).arg(m_config.maxReconnectAttempts));
+    m_reconnectCountdownTimer->stop();
     if (m_reconnectAttempts >= m_config.maxReconnectAttempts) {
         m_reconnectTimer->stop();
         emit errorOccurred("Max reconnect attempts reached");
@@ -354,6 +415,8 @@ void QtWebSocketClient::attemptReconnect() {
     if (m_socket->state() == QAbstractSocket::UnconnectedState) {
         m_receiveBuffer.clear();
         m_socket->connectToHost(m_host, m_port.toInt());
+        m_connectTimeoutTimer->start(5000);
+        wsLog("[WS] reconnect connectToHost called, timeout 5s started");
     }
 }
 
