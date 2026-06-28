@@ -41,10 +41,6 @@ DashboardPage::DashboardPage(QWidget *parent) : QWidget(parent) {
     m_cardContainers["fileserver"]->setParent(m_cardArea);
     m_cardOrder << "fileserver";
 
-    m_cardContainers["shell"] = createShellCard();
-    m_cardContainers["shell"]->setParent(m_cardArea);
-    m_cardOrder << "shell";
-
     m_networkManager = new QNetworkAccessManager(this);
 
     QTimer::singleShot(0, this, [this]() { resizeEvent(nullptr); });
@@ -108,6 +104,11 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
             if (clickedChild) {
                 if (clickedChild->objectName() == "prevBtn" || clickedChild->objectName() == "nextBtn")
                     return false;
+                if (qobject_cast<QPushButton *>(clickedChild))
+                    return false;
+                auto *lbl = qobject_cast<QLabel *>(clickedChild);
+                if (lbl && lbl->openExternalLinks())
+                    return false;
             }
 
             QString name;
@@ -122,8 +123,6 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
                 name = "translate";
             } else if (cardWidget->objectName() == "fileServerCard") {
                 name = "fileserver";
-            } else if (cardWidget->objectName() == "shellCard") {
-                name = "shell";
             }
 
             if (!name.isEmpty()) {
@@ -504,64 +503,6 @@ QWidget *DashboardPage::createFileServerCard() {
     cardWidget->setStyleSheet(
         "#fileServerCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
         "#fileServerCard:hover { background-color: rgba(42, 44, 48, 0.5); border-color: #0ea5e9; }"
-    );
-
-    auto *shadow = new QGraphicsDropShadowEffect();
-    shadow->setBlurRadius(20);
-    shadow->setOffset(0, 4);
-    shadow->setColor(QColor(0, 0, 0, 60));
-    cardWidget->setGraphicsEffect(shadow);
-    cardWidget->installEventFilter(this);
-
-    return cardWidget;
-}
-
-QWidget *DashboardPage::createShellCard() {
-    auto *cardWidget = new QWidget();
-    cardWidget->setFixedSize(280, 180);
-    cardWidget->setObjectName("shellCard");
-    cardWidget->setCursor(Qt::PointingHandCursor);
-
-    auto *mainLayout = new QVBoxLayout(cardWidget);
-    mainLayout->setContentsMargins(16, 10, 16, 10);
-    mainLayout->setSpacing(4);
-
-    auto *topRow = new QHBoxLayout();
-    topRow->setSpacing(6);
-
-    auto *titleLabel = new QLabel("Shell");
-    titleLabel->setStyleSheet(
-        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;"
-    );
-    topRow->addWidget(titleLabel);
-    topRow->addStretch(1);
-
-    mainLayout->addLayout(topRow);
-    mainLayout->addSpacing(4);
-
-    auto *descLabel = new QLabel("执行系统命令\n管理本地 Shell 会话");
-    descLabel->setStyleSheet(
-        "color: #64748b; font-size: 8pt; background: transparent; border: none;"
-    );
-    mainLayout->addWidget(descLabel);
-
-    mainLayout->addStretch(1);
-
-    auto *statusRow = new QHBoxLayout();
-    statusRow->setContentsMargins(0, 0, 0, 0);
-
-    auto *statusLabel = new QLabel("●");
-    statusLabel->setStyleSheet(
-        "color: #64748b; font-size: 12pt; background: transparent; border: none;"
-    );
-    statusRow->addWidget(statusLabel);
-    statusRow->addStretch(1);
-
-    mainLayout->addLayout(statusRow);
-
-    cardWidget->setStyleSheet(
-        "#shellCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
-        "#shellCard:hover { background-color: rgba(42, 44, 48, 0.5); border-color: #0ea5e9; }"
     );
 
     auto *shadow = new QGraphicsDropShadowEffect();

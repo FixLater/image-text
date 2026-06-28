@@ -29,8 +29,6 @@ set(SOURCES
     Sources/ConfigSyncClient.cpp
     Sources/TranslationPage.cpp
     Sources/FileServerPage.cpp
-    Sources/ShellManagerPage.cpp
-    Sources/ConPtyProcess.cpp
 )
 
 set(UI_FILES
@@ -51,8 +49,6 @@ set(HEADERS
     Sources/Headers/ConfigSyncClient.h
     Sources/Headers/TranslationPage.h
     Sources/Headers/FileServerPage.h
-    Sources/Headers/ShellManagerPage.h
-    Sources/Headers/ConPtyProcess.h
 )
 
 set(UI_FILES

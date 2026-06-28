@@ -61,7 +61,6 @@ private:
     QWidget *createCard(const ModuleCard &card);
     QWidget *createTranslateCard();
     QWidget *createFileServerCard();
-    QWidget *createShellCard();
 
     QTextEdit *m_translateInput = nullptr;
     QLabel *m_translateResult = nullptr;

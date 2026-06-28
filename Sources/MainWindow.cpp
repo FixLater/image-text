@@ -4,7 +4,6 @@
 #include "WebSocketPage.h"
 #include "TranslationPage.h"
 #include "FileServerPage.h"
-#include "ShellManagerPage.h"
 #include "SettingsDialog.h"
 #include "ConfigService.h"
 #include "StarBackground.h"
@@ -253,13 +252,11 @@ void MainWindow::initPages() {
     m_websocketPage = new WebSocketPage(this);
     m_translationPage = new TranslationPage(this);
     m_fileServerPage = new FileServerPage(this);
-    m_shellPage = new ShellManagerPage(this);
 
     ui->stackedWidget->addWidget(m_dashboardPage);
     ui->stackedWidget->addWidget(m_websocketPage);
     ui->stackedWidget->addWidget(m_translationPage);
     ui->stackedWidget->addWidget(m_fileServerPage);
-    ui->stackedWidget->addWidget(m_shellPage);
     ui->stackedWidget->setCurrentIndex(0);
 
     ui->stackedWidget->setStyleSheet("QStackedWidget { background: transparent; }");
@@ -315,14 +312,6 @@ void MainWindow::initPages() {
         m_fileServerPage->onToggleServer();
     });
 
-    connect(m_shellPage, &ShellManagerPage::tabsChanged, this, &MainWindow::rebuildTabBar);
-    connect(m_shellPage, &ShellManagerPage::statusChanged, this, [this](bool connected) {
-        m_dashboardPage->updateCardStatus("shell", connected);
-    });
-    connect(m_shellPage, &ShellManagerPage::logAppended, this, [this](int tabIndex, const QString &html) {
-        m_dashboardPage->appendCardLog("shell", tabIndex, html);
-    });
-
     if (SettingsDialog::fileServerAutoStart()) {
         m_fileServerPage->onToggleServer();
     }
@@ -347,7 +336,6 @@ void MainWindow::onModuleClicked(const QString &moduleName) {
         ui->leftBtn1->show();
         ui->leftBtn2->show();
         ui->leftBtn3->show();
-        ui->leftBtn4->show();
     }
     navigateTo(moduleName);
     updateSidebarSelection(moduleName);
@@ -370,7 +358,6 @@ void MainWindow::updateSidebarSelection(const QString &active) {
     applyStyle(ui->leftBtn1, active == "websocket");
     applyStyle(ui->leftBtn2, active == "translate");
     applyStyle(ui->leftBtn3, active == "fileserver");
-    applyStyle(ui->leftBtn4, active == "shell");
 }
 
 void MainWindow::setupLeftSidebarIcons() {
@@ -388,11 +375,6 @@ void MainWindow::setupLeftSidebarIcons() {
     ui->leftBtn3->setIconSize(QSize(18, 18));
     ui->leftBtn3->setToolTip("文件服务器");
     ui->leftBtn3->setFixedSize(28, 28);
-
-    ui->leftBtn4->setIcon(QIcon(":/icons/shell.svg"));
-    ui->leftBtn4->setIconSize(QSize(18, 18));
-    ui->leftBtn4->setToolTip("Shell");
-    ui->leftBtn4->setFixedSize(28, 28);
 
     connect(ui->leftBtn1, &QPushButton::clicked, this, [this]() {
         if (ui->leftBtn1->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
@@ -419,15 +401,6 @@ void MainWindow::setupLeftSidebarIcons() {
         } else {
             navigateTo("fileserver");
             updateSidebarSelection("fileserver");
-        }
-    });
-    connect(ui->leftBtn4, &QPushButton::clicked, this, [this]() {
-        if (ui->leftBtn4->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
-            updateSidebarSelection("");
-            navigateBack();
-        } else {
-            navigateTo("shell");
-            updateSidebarSelection("shell");
         }
     });
 }
@@ -478,7 +451,6 @@ void MainWindow::toggleSidebar() {
         ui->leftBtn1->show();
         ui->leftBtn2->show();
         ui->leftBtn3->show();
-        ui->leftBtn4->show();
         updateSidebarSelection("");
     } else {
         ui->viewToggleBtn->setIcon(QIcon(":/icons/sidebar.svg"));
@@ -487,7 +459,6 @@ void MainWindow::toggleSidebar() {
         ui->leftBtn1->hide();
         ui->leftBtn2->hide();
         ui->leftBtn3->hide();
-        ui->leftBtn4->hide();
         updateSidebarSelection("");
         navigateBack();
     }
@@ -506,11 +477,6 @@ void MainWindow::navigateTo(const QString &moduleName) {
         ui->stackedWidget->setCurrentWidget(m_fileServerPage);
         updateBreadcrumb("仪表盘 › 文件服务器");
         ui->tabBarWidget->hide();
-    } else if (moduleName == "shell") {
-        ui->stackedWidget->setCurrentWidget(m_shellPage);
-        updateBreadcrumb("仪表盘 › Shell");
-        ui->tabBarWidget->show();
-        rebuildTabBar();
     }
 }
 
@@ -548,163 +514,18 @@ void MainWindow::showTabBar(bool show) {
 }
 
 void MainWindow::onTabAddClicked() {
-    if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
-        m_shellPage->addTab();
-    }
 }
 
 void MainWindow::onTabClicked(int index) {
-    if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
-        m_shellPage->switchTab(index);
-        m_activeTabIndex = index;
-    }
 }
 
 void MainWindow::onTabCloseClicked(int index) {
-    if (ui->stackedWidget->currentWidget() == m_shellPage && m_shellPage) {
-        m_shellPage->closeTab(index);
-        m_activeTabIndex = m_shellPage->activeTabIndex();
-    }
 }
 
 void MainWindow::rebuildTabBar() {
-    auto *layout = qobject_cast<QBoxLayout *>(ui->tabBarWidget->layout());
-    if (!layout) return;
-
-    for (int i = layout->count() - 1; i >= 0; --i) {
-        auto *item = layout->itemAt(i);
-        if (!item || !item->widget()) continue;
-        if (item->widget()->objectName() == "tabWidget") {
-            auto *w = layout->takeAt(i)->widget();
-            w->deleteLater();
-        }
-    }
-
-    bool isSh = (ui->stackedWidget->currentWidget() == m_shellPage);
-
-    int count = 0;
-    int active = -1;
-    QString icon = ">_";
-
-    if (isSh && m_shellPage) {
-        count = m_shellPage->tabCount();
-        active = m_shellPage->activeTabIndex();
-    } else {
-        return;
-    }
-
-    if (active < 0 && count > 0) active = 0;
-
-    int tabAddIndex = -1;
-    for (int i = 0; i < layout->count(); i++) {
-        if (layout->itemAt(i)->widget() == ui->tabAdd) {
-            tabAddIndex = i;
-            break;
-        }
-    }
-    if (tabAddIndex == -1) return;
-
-    for (int i = 0; i < count; i++) {
-        auto *tabWidget = new QWidget(ui->tabBarWidget);
-        tabWidget->setObjectName("tabWidget");
-        tabWidget->setCursor(Qt::PointingHandCursor);
-        tabWidget->setContextMenuPolicy(Qt::CustomContextMenu);
-        tabWidget->setMaximumWidth(200);
-
-        auto *tabLayout = new QHBoxLayout(tabWidget);
-        tabLayout->setContentsMargins(0, 4, 6, 4);
-        tabLayout->setSpacing(6);
-
-        auto *iconLabel = new QLabel(icon, tabWidget);
-        iconLabel->setStyleSheet("font-size: 10pt; background: transparent; border: none;");
-
-        QString title;
-        title = m_shellPage->tabTitle(i);
-
-        auto *textLabel = new QLabel(title, tabWidget);
-        textLabel->setStyleSheet("font-size: 9pt; background: transparent; border: none;");
-        textLabel->setMaximumWidth(120);
-
-        auto *closeBtn = new QPushButton("×", tabWidget);
-        closeBtn->setFixedSize(18, 18);
-        closeBtn->setObjectName("tabCloseBtn");
-        closeBtn->setCursor(Qt::PointingHandCursor);
-
-        tabLayout->addWidget(iconLabel);
-        tabLayout->addWidget(textLabel, 1);
-        tabLayout->addWidget(closeBtn);
-
-        bool isActive = (i == active);
-        if (isActive) {
-            tabWidget->setStyleSheet("#tabWidget { background-color: #1a1b1e; border-radius: 0; }");
-            tabWidget->setContentsMargins(4, 4, 4, 0);
-            textLabel->setStyleSheet("color: #e2e8f0; font-size: 9pt; background: transparent; border: none;");
-            closeBtn->setStyleSheet("QPushButton { color: #94a3b8; background: transparent; border: none; font-size: 10pt; border-radius: 3px; padding: 1px 0 3px 0; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
-        } else {
-            tabWidget->setStyleSheet("#tabWidget { background-color: #222326; border-radius: 0; }");
-            tabWidget->setContentsMargins(0, 4, 0, 0);
-            textLabel->setStyleSheet("color: #6b7280; font-size: 9pt; background: transparent; border: none;");
-            closeBtn->setStyleSheet("QPushButton { color: #555; background: transparent; border: none; font-size: 10pt; border-radius: 3px; padding: 1px 0 3px 0; } QPushButton:hover { background-color: #36383d; color: #e2e8f0; }");
-        }
-
-        connect(tabWidget, &QWidget::customContextMenuRequested, this, [this, i, tabWidget](QPoint pos) {
-            QMenu menu(this);
-            menu.setStyleSheet(
-                "QMenu { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px; }"
-                "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
-                "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
-            );
-            QAction closeCurrent("关闭当前标签", this);
-            connect(&closeCurrent, &QAction::triggered, this, [this, i, tabWidget]() {
-                onTabCloseClicked(i);
-            });
-            menu.addAction(&closeCurrent);
-            menu.exec(tabWidget->mapToGlobal(pos));
-        });
-
-        connect(closeBtn, &QPushButton::clicked, this, [this, i, closeBtn]() {
-            onTabCloseClicked(i);
-        });
-        tabWidget->installEventFilter(this);
-
-        layout->insertWidget(tabAddIndex + i, tabWidget);
-    }
-
-    ui->tabAdd->setStyleSheet(
-        "QPushButton { background: transparent; color: #374151; border: none;"
-        "  font-size: 14pt; font-weight: bold; padding: 0 8px; border-radius: 4px; }"
-        "QPushButton:hover { color: #d1d5db; background-color: #1f2937; }"
-    );
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
-    if (event->type() == QEvent::MouseButtonPress) {
-        auto *mouseEvent = static_cast<QMouseEvent *>(event);
-        if (mouseEvent->button() == Qt::LeftButton) {
-            auto *tabWidget = qobject_cast<QWidget *>(obj);
-            if (tabWidget && tabWidget->objectName() == "tabWidget") {
-                auto *clickedChild = tabWidget->childAt(mouseEvent->pos());
-                if (clickedChild && clickedChild->objectName() == "tabCloseBtn") {
-                    return false;
-                }
-
-                auto *layout = qobject_cast<QBoxLayout *>(ui->tabBarWidget->layout());
-                if (layout) {
-                    int tabIndex = 0;
-                    for (int j = 0; j < layout->count(); j++) {
-                        auto *item = layout->itemAt(j);
-                        if (!item || !item->widget()) continue;
-                        if (item->widget()->objectName() != "tabWidget") continue;
-                        if (item->widget() == tabWidget) {
-                            onTabClicked(tabIndex);
-                            return false;
-                        }
-                        tabIndex++;
-                    }
-                }
-            }
-        }
-    }
     return QMainWindow::eventFilter(obj, event);
 }
 
@@ -728,10 +549,10 @@ void MainWindow::applyTitleBarStyle() {
         "#minimizeBtn:hover, #maximizeBtn:hover, #settingsBtn:hover { background-color: #36383d; }"
         "#closeBtn:hover { background-color: #dc2626; }"
 
-        "#leftBtn1, #leftBtn2 {"
+        "#leftBtn1, #leftBtn2, #leftBtn3 {"
         "  background: transparent; border: none; border-radius: 4px;"
         "}"
-        "#leftBtn1:hover, #leftBtn2:hover { background-color: #36383d; }"
+        "#leftBtn1:hover, #leftBtn2:hover, #leftBtn3:hover { background-color: #36383d; }"
 
         "#backBtn, #homeBtn {"
         "  background: transparent; color: #94a3b8; border: none;"
