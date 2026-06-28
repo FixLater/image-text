@@ -113,13 +113,7 @@ bool DashboardPage::eventFilter(QObject *obj, QEvent *event) {
                     if (clickY <= 36) {
                         emit moduleClicked(it.key());
                     } else {
-                        if (m_isExpanded && m_expandedCardName == it.key()) {
-                            collapseCard();
-                        } else if (m_isExpanded && m_expandedCardName != it.key()) {
-                            switchCard(it.key());
-                        } else if (!m_isExpanded) {
-                            expandCard(it.key());
-                        }
+                        toggleCardExpansion(it.key());
                     }
                     return true;
                 }
@@ -134,7 +128,8 @@ void DashboardPage::updateCardStatus(const QString &moduleName, bool connected, 
         if (!m_fsStatusLabel) return;
         if (connected) {
             m_fsStatusLabel->setStyleSheet(
-                "color: #34d399; font-size: 12pt; background: transparent; border: none;");
+                "background-color: #34d399; border-radius: 3px; min-width: 6px; max-width: 6px;"
+                "min-height: 6px; max-height: 6px; border: none; margin-left: 4px;");
             m_fsToggleBtn->setText(QString::fromUtf8("\xe5\x81\x9c\xe6\xad\xa2"));
             m_fsToggleBtn->setStyleSheet(
                 "QPushButton { background-color: #dc2626; color: white; border: none; border-radius: 4px;"
@@ -146,7 +141,8 @@ void DashboardPage::updateCardStatus(const QString &moduleName, bool connected, 
             m_fsAddressLabel->setCursor(Qt::PointingHandCursor);
         } else {
             m_fsStatusLabel->setStyleSheet(
-                "color: #64748b; font-size: 12pt; background: transparent; border: none;");
+                "background-color: #64748b; border-radius: 3px; min-width: 6px; max-width: 6px;"
+                "min-height: 6px; max-height: 6px; border: none; margin-left: 4px;");
             m_fsToggleBtn->setText(QString::fromUtf8("\xe5\x90\xaf\xe5\x8a\xa8"));
             m_fsToggleBtn->setStyleSheet(
                 "QPushButton { background-color: #0ea5e9; color: white; border: none; border-radius: 4px;"
@@ -162,12 +158,12 @@ void DashboardPage::updateCardStatus(const QString &moduleName, bool connected, 
     auto &widgets = m_cardWidgets[moduleName];
     if (connected) {
         widgets.statusLabel->setStyleSheet(
-            "background-color: #34d399; border-radius: 4px; min-width: 8px; max-width: 8px;"
-            "min-height: 8px; max-height: 8px; border: none;");
+            "background-color: #34d399; border-radius: 3px; min-width: 6px; max-width: 6px;"
+            "min-height: 6px; max-height: 6px; border: none; margin-left: 4px;");
     } else {
         widgets.statusLabel->setStyleSheet(
-            "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
-            "min-height: 8px; max-height: 8px; border: none;");
+            "background-color: #64748b; border-radius: 3px; min-width: 6px; max-width: 6px;"
+            "min-height: 6px; max-height: 6px; border: none; margin-left: 4px;");
     }
 }
 
@@ -185,6 +181,16 @@ void DashboardPage::appendCardLog(const QString &moduleName, int tabIndex, const
         firstBlock.movePosition(QTextCursor::Start);
         firstBlock.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
         firstBlock.removeSelectedText();
+    }
+}
+
+void DashboardPage::toggleCardExpansion(const QString &moduleName) {
+    if (m_isExpanded && m_expandedCardName == moduleName) {
+        collapseCard();
+    } else if (m_isExpanded && m_expandedCardName != moduleName) {
+        switchCard(moduleName);
+    } else if (!m_isExpanded) {
+        expandCard(moduleName);
     }
 }
 

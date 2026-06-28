@@ -31,6 +31,7 @@ public:
 
     void updateCardStatus(const QString &moduleName, bool connected, const QString &address = QString());
     void appendCardLog(const QString &moduleName, int tabIndex, const QString &html);
+    void toggleCardExpansion(const QString &moduleName);
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;

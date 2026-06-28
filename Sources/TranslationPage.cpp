@@ -2,6 +2,7 @@
 #include "SettingsDialog.h"
 #include "ModuleRegistry.h"
 #include "DashboardPage.h"
+#include "UnifiedCard.h"
 
 #include <algorithm>
 
@@ -622,44 +623,21 @@ void TranslationPage::onSwapLanguages()
 namespace TranslationModule {
 
 static QWidget *createCard(QWidget *parent, DashboardPage *db) {
-    Q_UNUSED(db);
-    auto *card = new QWidget(parent);
-    card->setObjectName("translateCard");
-    card->setCursor(Qt::PointingHandCursor);
+    auto u = createUnifiedCard(parent, QString::fromUtf8("\xe7\xbf\xbb\xe8\xaf\x91"), db, "translate", false);
 
-    auto *mainLayout = new QVBoxLayout(card);
-    mainLayout->setContentsMargins(16, 10, 16, 10);
-    mainLayout->setSpacing(4);
-
-    auto *topRow = new QHBoxLayout();
-    topRow->setSpacing(6);
-    auto *titleLabel = new QLabel(QString::fromUtf8("\xe7\xbf\xbb\xe8\xaf\x91"));
-    titleLabel->setStyleSheet(
-        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;");
-    topRow->addWidget(titleLabel);
-    topRow->addStretch(1);
-    mainLayout->addLayout(topRow);
+    auto *contentLayout = new QVBoxLayout(u.contentArea);
+    contentLayout->setContentsMargins(12, 1, 12, 4);
+    contentLayout->setSpacing(1);
 
     auto *input = new QTextEdit();
     input->setPlaceholderText(QString::fromUtf8("\xe8\xbe\x93\xe5\x85\xa5\xe6\x96\x87\xe6\x9c\xac..."));
-    input->setMaximumHeight(65);
+    input->setMinimumHeight(110);
     input->setStyleSheet(
         "QTextEdit { background-color: #1a1b1e; color: #e2e8f0; border: 1px solid #36383d;"
         "  border-radius: 4px; font-size: 8pt; padding: 4px;"
         "  font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; }"
         "QTextEdit:focus { border-color: #0ea5e9; }");
-    mainLayout->addWidget(input);
-
-    auto *btnRow = new QHBoxLayout();
-    auto *btn = new QPushButton(QString::fromUtf8("\xe7\xbf\xbb\xe8\xaf\x91"));
-    btn->setCursor(Qt::PointingHandCursor);
-    btn->setStyleSheet(
-        "QPushButton { background-color: #0ea5e9; color: white; border: none; border-radius: 4px;"
-        "  font-size: 8pt; padding: 3px 12px; }"
-        "QPushButton:hover { background-color: #38bdf8; }");
-    btnRow->addStretch(1);
-    btnRow->addWidget(btn);
-    mainLayout->addLayout(btnRow);
+    contentLayout->addWidget(input);
 
     auto *result = new QLabel("");
     result->setWordWrap(true);
@@ -667,20 +645,18 @@ static QWidget *createCard(QWidget *parent, DashboardPage *db) {
     result->setStyleSheet(
         "color: #94a3b8; font-size: 8pt; background: transparent; border: none;"
         "font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif;");
-    mainLayout->addWidget(result);
-    mainLayout->addStretch(1);
+    contentLayout->addWidget(result);
 
-    card->setStyleSheet(
-        "#translateCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
-        "#translateCard:hover { background-color: rgba(42,44,48,0.5); border-color: #0ea5e9; }");
+    auto *translateBtn = new QPushButton(QString::fromUtf8("\xe7\xbf\xbb\xe8\xaf\x91"));
+    translateBtn->setCursor(Qt::PointingHandCursor);
+    translateBtn->setStyleSheet(
+        "QPushButton { background-color: #0ea5e9; color: white; border: none; border-radius: 4px;"
+        "  font-size: 8pt; padding: 3px 12px; }"
+        "QPushButton:hover { background-color: #38bdf8; }");
+    u.bottomRow->addStretch(1);
+    u.bottomRow->addWidget(translateBtn);
 
-    auto *shadow = new QGraphicsDropShadowEffect();
-    shadow->setBlurRadius(20);
-    shadow->setOffset(0, 4);
-    shadow->setColor(QColor(0, 0, 0, 60));
-    card->setGraphicsEffect(shadow);
-
-    return card;
+    return u.card;
 }
 
 static void connectSignals(QWidget *page, DashboardPage *db) {

@@ -52,6 +52,7 @@ set(HEADERS
     Sources/Headers/FileServerPage.h
     Sources/Headers/ModuleInfo.h
     Sources/Headers/ModuleRegistry.h
+    Sources/Headers/UnifiedCard.h
 )
 
 set(UI_FILES

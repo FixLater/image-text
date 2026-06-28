@@ -24,6 +24,7 @@
 #include "StarBackground.h"
 #include "ModuleRegistry.h"
 #include "DashboardPage.h"
+#include "UnifiedCard.h"
 #include <QTextOption>
 #include <QGraphicsDropShadowEffect>
 
@@ -746,36 +747,16 @@ void WebSocketPage::updateStatusStyle() {
 namespace WebSocketModule {
 
 static QWidget *createCard(QWidget *parent, DashboardPage *db) {
-    auto *card = new QWidget(parent);
-    card->setObjectName("moduleCard");
-    card->setCursor(Qt::PointingHandCursor);
+    auto u = createUnifiedCard(parent, "WebSocket", db, "websocket", false);
 
-    auto *mainLayout = new QVBoxLayout(card);
-    mainLayout->setContentsMargins(16, 10, 16, 10);
-    mainLayout->setSpacing(0);
-
-    auto *topRow = new QHBoxLayout();
-    topRow->setSpacing(6);
-
-    auto *titleLabel = new QLabel("WebSocket");
-    titleLabel->setStyleSheet(
-        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;");
-    topRow->addWidget(titleLabel);
-    topRow->addStretch(1);
+    auto *contentLayout = new QVBoxLayout(u.contentArea);
+    contentLayout->setContentsMargins(12, 1, 12, 4);
+    contentLayout->setSpacing(1);
 
     auto *tabLabel = new QLabel("1/1");
     tabLabel->setStyleSheet("font-size: 7pt; color: #475569; background: transparent; border: none;");
     tabLabel->setVisible(false);
-    topRow->addWidget(tabLabel);
-
-    auto *statusLabel = new QLabel();
-    statusLabel->setStyleSheet(
-        "background-color: #64748b; border-radius: 4px; min-width: 8px; max-width: 8px;"
-        "min-height: 8px; max-height: 8px; border: none;");
-    topRow->addWidget(statusLabel);
-
-    mainLayout->addLayout(topRow);
-    mainLayout->addSpacing(6);
+    contentLayout->addWidget(tabLabel);
 
     auto *logPreview = new QTextBrowser();
     logPreview->setReadOnly(true);
@@ -784,6 +765,7 @@ static QWidget *createCard(QWidget *parent, DashboardPage *db) {
     logPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     logPreview->setOpenExternalLinks(false);
     logPreview->setWordWrapMode(QTextOption::WrapAnywhere);
+    logPreview->setMinimumHeight(108);
     logPreview->setStyleSheet(
         "QTextBrowser { background-color: transparent; color: #94a3b8; border: 1px solid #36383d;"
         "  border-radius: 4px; font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif;"
@@ -791,45 +773,11 @@ static QWidget *createCard(QWidget *parent, DashboardPage *db) {
     logPreview->document()->setDefaultStyleSheet(
         ".timestamp { color: #334155; } .info { color: #000000; } .error { color: #f87171; }"
         " .success { color: #34d399; } .warning { color: #fbbf24; } .sent { color: #16a34a; }");
-    mainLayout->addWidget(logPreview);
+    contentLayout->addWidget(logPreview);
 
-    auto *prevBtn = new QPushButton(QChar(0x25C0), card);
-    prevBtn->setObjectName("prevBtn");
-    prevBtn->setFixedSize(12, 40);
-    prevBtn->move(2, 70);
-    prevBtn->setCursor(Qt::PointingHandCursor);
-    prevBtn->setVisible(false);
-    prevBtn->setStyleSheet(
-        "QPushButton { background-color: rgba(38,40,44,200); color: #64748b; border: none;"
-        "  border-radius: 4px; font-size: 9pt; }"
-        "QPushButton:hover { color: #e2e8f0; background-color: rgba(55,65,81,220); }"
-        "QPushButton:disabled { color: #36383d; background-color: transparent; }");
+    db->registerCardWidgets("websocket", {u.statusLabel, logPreview, nullptr, nullptr, tabLabel});
 
-    auto *nextBtn = new QPushButton(QChar(0x25B6), card);
-    nextBtn->setObjectName("nextBtn");
-    nextBtn->setFixedSize(12, 40);
-    nextBtn->move(266, 70);
-    nextBtn->setCursor(Qt::PointingHandCursor);
-    nextBtn->setVisible(false);
-    nextBtn->setStyleSheet(
-        "QPushButton { background-color: rgba(38,40,44,200); color: #64748b; border: none;"
-        "  border-radius: 4px; font-size: 9pt; }"
-        "QPushButton:hover { color: #e2e8f0; background-color: rgba(55,65,81,220); }"
-        "QPushButton:disabled { color: #36383d; background-color: transparent; }");
-
-    db->registerCardWidgets("websocket", {statusLabel, logPreview, prevBtn, nextBtn, tabLabel});
-
-    card->setStyleSheet(
-        "#moduleCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
-        "#moduleCard:hover { background-color: rgba(42,44,48,0.5); border-color: #0ea5e9; }");
-
-    auto *shadow = new QGraphicsDropShadowEffect();
-    shadow->setBlurRadius(20);
-    shadow->setOffset(0, 4);
-    shadow->setColor(QColor(0, 0, 0, 60));
-    card->setGraphicsEffect(shadow);
-
-    return card;
+    return u.card;
 }
 
 static void connectSignals(QWidget *page, DashboardPage *db) {
