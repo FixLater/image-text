@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QVector>
+#include <QMap>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QTimer>
@@ -13,9 +14,6 @@
 
 class SettingsDialog;
 class DashboardPage;
-class WebSocketPage;
-class TranslationPage;
-class FileServerPage;
 class StarBackground;
 
 namespace Ui {
@@ -56,10 +54,8 @@ private:
     QPoint m_dragPosition;
     bool m_isDragging = false;
 
-    DashboardPage *m_dashboardPage;
-    WebSocketPage *m_websocketPage;
-    TranslationPage *m_translationPage;
-    FileServerPage *m_fileServerPage;
+    DashboardPage *m_dashboardPage = nullptr;
+    QMap<QString, QWidget*> m_pages;
     StarBackground *m_starBg;
 
     QSystemTrayIcon *m_trayIcon;
@@ -74,13 +70,8 @@ private:
     void applyTitleBarStyle();
     void setupSystemTray();
 
-    void rebuildTabBar();
-    void onTabAddClicked();
-    void onTabClicked(int index);
-    void onTabCloseClicked(int index);
-    void showTabBar(bool show);
-    int m_activeTabIndex = -1;
     bool m_sidebarVisible = false;
+    QVector<QPushButton*> m_sidebarButtons;
 
     void toggleSidebar();
     void setupLeftSidebarIcons();

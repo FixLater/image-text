@@ -1,5 +1,7 @@
 #include "FileServerPage.h"
 #include "SettingsDialog.h"
+#include "ModuleRegistry.h"
+#include "DashboardPage.h"
 
 #include <QApplication>
 #include <QDesktopServices>
@@ -404,3 +406,102 @@ void FileServerPage::handleHttpRequest(QTcpSocket *socket, const QString &reques
         socket->disconnectFromHost();
     }
 }
+
+namespace FileServerModule {
+
+static QPushButton *s_toggleBtn = nullptr;
+
+static QWidget *createCard(QWidget *parent, DashboardPage *db) {
+    Q_UNUSED(db);
+    auto *card = new QWidget(parent);
+    card->setObjectName("fileServerCard");
+    card->setCursor(Qt::PointingHandCursor);
+
+    auto *mainLayout = new QVBoxLayout(card);
+    mainLayout->setContentsMargins(16, 10, 16, 10);
+    mainLayout->setSpacing(4);
+
+    auto *topRow = new QHBoxLayout();
+    topRow->setSpacing(6);
+    auto *titleLabel = new QLabel(QString::fromUtf8("\xe6\x96\x87\xe4\xbb\xb6\xe6\x9c\x8d\xe5\x8a\xa1\xe5\x99\xa8"));
+    titleLabel->setStyleSheet(
+        "font-size: 9pt; font-weight: bold; color: #94a3b8; background: transparent; border: none;");
+    topRow->addWidget(titleLabel);
+    topRow->addStretch(1);
+
+    auto *statusLabel = new QLabel(QChar(0x25CF));
+    statusLabel->setStyleSheet(
+        "color: #64748b; font-size: 12pt; background: transparent; border: none;");
+    topRow->addWidget(statusLabel);
+    mainLayout->addLayout(topRow);
+    mainLayout->addSpacing(4);
+
+    auto *descLabel = new QLabel(QString::fromUtf8("HTTP \xe6\x96\x87\xe4\xbb\xb6\xe6\x9c\x8d\xe5\x8a\xa1\xe5\x99\xa8\n\xe5\xb1\x80\xe5\x9f\x9f\xe7\xbd\x91\xe5\x86\x85\xe8\xae\xbf\xe9\x97\xae\xe6\x96\x87\xe4\xbb\xb6\xe5\x88\x97\xe8\xa1\xa8"));
+    descLabel->setStyleSheet(
+        "color: #64748b; font-size: 8pt; background: transparent; border: none;");
+    mainLayout->addWidget(descLabel);
+    mainLayout->addStretch(1);
+
+    auto *bottomRow = new QHBoxLayout();
+    auto *addrLabel = new QLabel(QString::fromUtf8("\xe6\x9c\xaa\xe8\xbf\x90\xe8\xa1\x8c"));
+    addrLabel->setStyleSheet(
+        "color: #475569; font-size: 8pt; background: transparent; border: none;");
+    bottomRow->addWidget(addrLabel);
+    bottomRow->addStretch(1);
+
+    auto *toggleBtn = new QPushButton(QString::fromUtf8("\xe5\x90\xaf\xe5\x8a\xa8"));
+    toggleBtn->setCursor(Qt::PointingHandCursor);
+    toggleBtn->setStyleSheet(
+        "QPushButton { background-color: #0ea5e9; color: white; border: none; border-radius: 4px;"
+        "  font-size: 8pt; padding: 4px 14px; }"
+        "QPushButton:hover { background-color: #38bdf8; }");
+    bottomRow->addWidget(toggleBtn);
+    mainLayout->addLayout(bottomRow);
+
+    card->setStyleSheet(
+        "#fileServerCard { background-color: transparent; border: 1px solid #36383d; border-radius: 8px; }"
+        "#fileServerCard:hover { background-color: rgba(42,44,48,0.5); border-color: #0ea5e9; }");
+
+    auto *shadow = new QGraphicsDropShadowEffect();
+    shadow->setBlurRadius(20);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 60));
+    card->setGraphicsEffect(shadow);
+
+    db->registerFileServerCard(statusLabel, addrLabel, toggleBtn);
+    s_toggleBtn = toggleBtn;
+
+    return card;
+}
+
+static void connectSignals(QWidget *page, DashboardPage *db) {
+    auto *fs = qobject_cast<FileServerPage*>(page);
+    if (!fs) return;
+    QObject::connect(fs, &FileServerPage::statusChanged, db, [db, fs](bool running) {
+        QString addr;
+        if (running) {
+            addr = QString("http://%1:%2").arg(fs->serverAddress()).arg(fs->port());
+        }
+        db->updateCardStatus("fileserver", running, addr);
+    });
+    if (s_toggleBtn) {
+        QObject::connect(s_toggleBtn, &QPushButton::clicked, fs, [fs]() {
+            fs->onToggleServer();
+        });
+    }
+}
+
+} // namespace FileServerModule
+
+static bool _reg_fileserver = [] {
+    ModuleRegistry::registerModule({
+        "fileserver",
+        ":/icons/fileserver.svg",
+        QString::fromUtf8("\xe6\x96\x87\xe4\xbb\xb6\xe6\x9c\x8d\xe5\x8a\xa1\xe5\x99\xa8"),
+        QString::fromUtf8("\xe4\xbb\xaa\xe8\xa1\xa8\xe7\x9b\x98 \xe2\x80\xba \xe6\x96\x87\xe4\xbb\xb6\xe6\x9c\x8d\xe5\x8a\xa1\xe5\x99\xa8"),
+        []() -> QWidget* { return new FileServerPage(); },
+        FileServerModule::createCard,
+        FileServerModule::connectSignals
+    });
+    return true;
+}();

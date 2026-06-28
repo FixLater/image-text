@@ -29,6 +29,7 @@ set(SOURCES
     Sources/ConfigSyncClient.cpp
     Sources/TranslationPage.cpp
     Sources/FileServerPage.cpp
+    Sources/ModuleRegistry.cpp
 )
 
 set(UI_FILES
@@ -49,6 +50,8 @@ set(HEADERS
     Sources/Headers/ConfigSyncClient.h
     Sources/Headers/TranslationPage.h
     Sources/Headers/FileServerPage.h
+    Sources/Headers/ModuleInfo.h
+    Sources/Headers/ModuleRegistry.h
 )
 
 set(UI_FILES

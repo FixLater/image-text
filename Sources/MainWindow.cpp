@@ -1,18 +1,16 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "DashboardPage.h"
-#include "WebSocketPage.h"
-#include "TranslationPage.h"
-#include "FileServerPage.h"
+#include "ModuleInfo.h"
+#include "ModuleRegistry.h"
 #include "SettingsDialog.h"
 #include "ConfigService.h"
 #include "StarBackground.h"
 #include <QVBoxLayout>
-#include <QRandomGenerator>
 #include <QHBoxLayout>
+#include <QRandomGenerator>
 #include <QMenu>
 #include <QMouseEvent>
-#include <QToolTip>
 #include <QCloseEvent>
 #include <QSystemTrayIcon>
 #include <QApplication>
@@ -26,8 +24,7 @@
 #endif
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
-                                          ui(new Ui::MainWindow),
-                                          m_activeTabIndex(-1) {
+                                          ui(new Ui::MainWindow) {
     ui->setupUi(this);
     setWindowFlags(Qt::FramelessWindowHint);
     setAttribute(Qt::WA_DeleteOnClose, false);
@@ -55,7 +52,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->maximizeBtn->setFixedSize(36, 36);
     ui->closeBtn->setFixedSize(36, 36);
     ui->settingsBtn->setFixedSize(36, 36);
-    ui->tabAdd->setFixedSize(32, 24);
 
     ui->minimizeBtn->setIcon(QIcon(":/icons/minimize.svg"));
     ui->minimizeBtn->setIconSize(QSize(16, 16));
@@ -67,8 +63,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->settingsBtn->setIconSize(QSize(16, 16));
 
     ui->onlineLabel->setStyleSheet(
-        "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
-    );
+        "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;");
     ui->onlineLabel->setText("offline");
     ui->onlineLabel->setToolTip("http://127.0.0.1:8200");
 
@@ -83,17 +78,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
     connect(ui->backBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
     connect(ui->homeBtn, &QPushButton::clicked, this, &MainWindow::navigateBack);
-    connect(ui->tabAdd, &QPushButton::clicked, this, &MainWindow::onTabAddClicked);
 
     ui->viewToggleBtn->setFixedSize(30, 30);
     ui->viewToggleBtn->setCursor(Qt::PointingHandCursor);
     ui->viewToggleBtn->setIcon(QIcon(":/icons/sidebar.svg"));
     ui->viewToggleBtn->setIconSize(QSize(21, 21));
-    ui->viewToggleBtn->setToolTip("显示侧边栏");
+    ui->viewToggleBtn->setToolTip(QString::fromUtf8("\xe6\x98\xbe\xe7\xa4\xba\xe4\xbe\xa7\xe8\xbe\xb9\xe6\xa0\x8f"));
     ui->viewToggleBtn->setStyleSheet(
         "QPushButton { background: transparent; border: none; border-radius: 4px; margin-left: 8px; }"
-        "QPushButton:hover { background-color: #36383d; }"
-    );
+        "QPushButton:hover { background-color: #36383d; }");
     connect(ui->viewToggleBtn, &QPushButton::clicked, this, &MainWindow::toggleSidebar);
 
     applyTitleBarStyle();
@@ -101,15 +94,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     setupLeftSidebarIcons();
 
     ui->tabBarWidget->hide();
+    ui->tabAdd->hide();
 }
 
 void MainWindow::onSettingsClicked() {
     SettingsDialog dlg(this);
     if (dlg.exec() == QDialog::Accepted) {
-        m_websocketPage->refreshUrlFromSettings();
-        m_fileServerPage->refreshFromSettings();
+        if (auto *ws = m_pages.value("websocket")) {
+            QMetaObject::invokeMethod(ws, "refreshUrlFromSettings");
+        }
+        if (auto *fs = m_pages.value("fileserver")) {
+            QMetaObject::invokeMethod(fs, "refreshFromSettings");
+        }
 
-        // 重新连接配置同步 WebSocket
         const QString chars = "abcdefghijklmnopqrstuvwxyz0123456789";
         int tokenLen = SettingsDialog::wsJwtTokenLength();
         QString token;
@@ -118,25 +115,22 @@ void MainWindow::onSettingsClicked() {
             token.append(chars.at(QRandomGenerator::global()->bounded(chars.length())));
         }
         SettingsDialog::configService()->startWebSocketSync(SettingsDialog::wsUrl(), token);
-
         SettingsDialog::configService()->loadAll();
     }
 }
 
 void MainWindow::setupSystemTray() {
     m_trayIcon = new QSystemTrayIcon(this);
-        m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
-
-    m_trayIcon->setToolTip("lovely - WebSocket 客户端");
+    m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
+    m_trayIcon->setToolTip("lovely");
 
     m_trayMenu = new QMenu(this);
     m_trayMenu->setStyleSheet(
         "QMenu { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px; }"
         "QMenu::item { padding: 6px 24px; border-radius: 4px; }"
-        "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }"
-    );
+        "QMenu::item:selected { background-color: rgba(14, 165, 233, 0.2); color: #0ea5e9; }");
 
-    QAction *showAction = m_trayMenu->addAction("打开");
+    QAction *showAction = m_trayMenu->addAction(QString::fromUtf8("\xe6\x89\x93\xe5\xbc\x80"));
     connect(showAction, &QAction::triggered, this, [this]() {
         setWindowFlags(windowFlags() & ~Qt::Tool);
         show();
@@ -146,14 +140,13 @@ void MainWindow::setupSystemTray() {
 
     m_trayMenu->addSeparator();
 
-    QAction *quitAction = m_trayMenu->addAction("退出");
+    QAction *quitAction = m_trayMenu->addAction(QString::fromUtf8("\xe9\x80\x80\xe5\x87\xba"));
     connect(quitAction, &QAction::triggered, this, [this]() {
         m_trayIcon->hide();
         qApp->quit();
     });
 
     m_trayIcon->setContextMenu(m_trayMenu);
-
     connect(m_trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::onTrayActivated);
 
     m_flashTimer = new QTimer(this);
@@ -171,7 +164,7 @@ void MainWindow::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
         activateWindow();
         if (m_flashTimer->isActive()) {
             m_flashTimer->stop();
-    m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
+            m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
         }
     }
 }
@@ -179,7 +172,7 @@ void MainWindow::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
 void MainWindow::flashTrayIcon() {
     m_flashState = !m_flashState;
     if (m_flashState) {
-            m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
+        m_trayIcon->setIcon(QIcon(":/app_icon.jpg"));
     } else {
         QPixmap pixmap(16, 16);
         pixmap.fill(Qt::transparent);
@@ -195,12 +188,12 @@ void MainWindow::flashTrayIcon() {
 
 void MainWindow::onNewMessage(const QString &message) {
     m_lastMessage = message;
-    m_trayIcon->setToolTip("新消息: " + message.left(100));
+    m_trayIcon->setToolTip(QString::fromUtf8("\xe6\x96\xb0\xe6\xb6\x88\xe6\x81\xaf: ") + message.left(100));
     if (!isActiveWindow()) {
         if (!m_flashTimer->isActive()) {
             m_flashTimer->start();
         }
-        m_trayIcon->showMessage("新消息", message.left(200), QSystemTrayIcon::Information, 3000);
+        m_trayIcon->showMessage(QString::fromUtf8("\xe6\x96\xb0\xe6\xb6\x88\xe6\x81\xaf"), message.left(200), QSystemTrayIcon::Information, 3000);
     }
 }
 
@@ -209,8 +202,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if (closeAction == 0) {
         if (!SettingsDialog::exitWithoutReminder()) {
             QMessageBox msgBox(this);
-            msgBox.setWindowTitle("退出确认");
-            msgBox.setText("确定要退出程序吗？");
+            msgBox.setWindowTitle(QString::fromUtf8("\xe9\x80\x80\xe5\x87\xba\xe7\xa1\xae\xe8\xae\xa4"));
+            msgBox.setText(QString::fromUtf8("\xe7\xa1\xae\xe5\xae\x9a\xe8\xa6\x81\xe9\x80\x80\xe5\x87\xba\xe7\xa8\x8b\xe5\xba\x8f\xe5\x90\x97\xef\xbc\x9f"));
             msgBox.setIcon(QMessageBox::Question);
             msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
             msgBox.setDefaultButton(QMessageBox::No);
@@ -220,8 +213,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
                 "QPushButton { background-color: #374151; color: #e2e8f0; border: none;"
                 "  border-radius: 4px; padding: 6px 20px; font-size: 9pt; }"
                 "QPushButton:hover { background-color: #4b5563; }"
-                "QPushButton:pressed { background-color: #374151; }"
-            );
+                "QPushButton:pressed { background-color: #374151; }");
             auto ret = msgBox.exec();
             if (ret != QMessageBox::Yes) {
                 event->ignore();
@@ -249,42 +241,42 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
 
 void MainWindow::initPages() {
     m_dashboardPage = new DashboardPage(this);
-    m_websocketPage = new WebSocketPage(this);
-    m_translationPage = new TranslationPage(this);
-    m_fileServerPage = new FileServerPage(this);
-
     ui->stackedWidget->addWidget(m_dashboardPage);
-    ui->stackedWidget->addWidget(m_websocketPage);
-    ui->stackedWidget->addWidget(m_translationPage);
-    ui->stackedWidget->addWidget(m_fileServerPage);
-    ui->stackedWidget->setCurrentIndex(0);
 
+    const auto &modules = ModuleRegistry::modules();
+    for (const auto &mod : modules) {
+        QWidget *page = mod.createPage();
+        page->setParent(this);
+        m_pages[mod.name] = page;
+        ui->stackedWidget->addWidget(page);
+        mod.connectSignals(page, m_dashboardPage);
+    }
+
+    ui->stackedWidget->setCurrentIndex(0);
     ui->stackedWidget->setStyleSheet("QStackedWidget { background: transparent; }");
     ui->centerContentWidget->setStyleSheet("#centerContentWidget { background: transparent; }");
     ui->middleWidget->setStyleSheet("#middleWidget { background: transparent; }");
 
     connect(m_dashboardPage, &DashboardPage::moduleClicked, this, &MainWindow::onModuleClicked);
-    connect(m_websocketPage, &WebSocketPage::statusChanged, this, [this](bool connected) {
-        m_dashboardPage->updateCardStatus("websocket", connected);
-    });
+
+    if (auto *ws = m_pages.value("websocket")) {
+        connect(ws, SIGNAL(messageReceived(QString)), this, SLOT(onNewMessage(QString)));
+    }
 
     if (SettingsDialog::configService()) {
         connect(SettingsDialog::configService(), &ConfigService::serverStatusChanged, this, [this](bool available) {
             if (available) {
                 ui->onlineLabel->setText("online");
                 ui->onlineLabel->setStyleSheet(
-                    "color: #34d399; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
-                );
+                    "color: #34d399; font-size: 8pt; font-weight: bold; background: transparent; border: none;");
             } else {
                 ui->onlineLabel->setText("offline");
                 ui->onlineLabel->setStyleSheet(
-                    "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;"
-                );
+                    "color: #64748b; font-size: 8pt; font-weight: bold; background: transparent; border: none;");
             }
         });
         ui->onlineLabel->setToolTip("http://127.0.0.1:8200");
 
-        // 启动 WebSocket 配置同步
         const QString chars = "abcdefghijklmnopqrstuvwxyz0123456789";
         int tokenLen = SettingsDialog::wsJwtTokenLength();
         QString token;
@@ -293,27 +285,13 @@ void MainWindow::initPages() {
             token.append(chars.at(QRandomGenerator::global()->bounded(chars.length())));
         }
         SettingsDialog::configService()->startWebSocketSync(SettingsDialog::wsUrl(), token);
-
-        // HTTP 降级加载
         SettingsDialog::configService()->loadAll();
     }
-    connect(m_websocketPage, &WebSocketPage::messageReceived, this, &MainWindow::onNewMessage);
-    connect(m_websocketPage, &WebSocketPage::logAppended, this, [this](const QString &html) {
-        m_dashboardPage->appendCardLog("websocket", 0, html);
-    });
-    connect(m_fileServerPage, &FileServerPage::statusChanged, this, [this](bool running) {
-        QString addr;
-        if (running) {
-            addr = QString("http://%1:%2").arg(m_fileServerPage->serverAddress()).arg(m_fileServerPage->port());
-        }
-        m_dashboardPage->updateCardStatus("fileserver", running, addr);
-    });
-    connect(m_dashboardPage, &DashboardPage::fileServerToggled, this, [this](bool start) {
-        m_fileServerPage->onToggleServer();
-    });
 
     if (SettingsDialog::fileServerAutoStart()) {
-        m_fileServerPage->onToggleServer();
+        if (auto *fs = m_pages.value("fileserver")) {
+            QMetaObject::invokeMethod(fs, "onToggleServer");
+        }
     }
 
     ui->backBtn->hide();
@@ -321,88 +299,63 @@ void MainWindow::initPages() {
     ui->breadcrumbSeparator1->hide();
     ui->leftBarWidget->setMinimumWidth(0);
     ui->leftBarWidget->setMaximumWidth(0);
-    ui->leftBtn1->hide();
-    ui->leftBtn2->hide();
-    ui->leftBtn3->hide();
+}
+
+void MainWindow::setupLeftSidebarIcons() {
+    const auto &modules = ModuleRegistry::modules();
+    QPushButton *btns[] = { ui->leftBtn1, ui->leftBtn2, ui->leftBtn3 };
     ui->leftBtn4->hide();
+
+    for (int i = 0; i < modules.size() && i < 3; ++i) {
+        const auto &mod = modules[i];
+        auto *btn = btns[i];
+        btn->setIcon(QIcon(mod.sidebarIcon));
+        btn->setIconSize(QSize(18, 18));
+        btn->setToolTip(mod.sidebarToolTip);
+        btn->setFixedSize(28, 28);
+        btn->setStyleSheet(
+            "QPushButton { background: transparent; border: none; border-radius: 4px; }"
+            "QPushButton:hover { background-color: #36383d; }");
+
+        connect(btn, &QPushButton::clicked, this, [this, name = mod.name, btn]() {
+            if (btn->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
+                updateSidebarSelection("");
+                navigateBack();
+            } else {
+                navigateTo(name);
+                updateSidebarSelection(name);
+            }
+        });
+        m_sidebarButtons.append(btn);
+    }
 }
 
 void MainWindow::onModuleClicked(const QString &moduleName) {
     if (!m_sidebarVisible) {
         m_sidebarVisible = true;
         ui->viewToggleBtn->setIcon(QIcon(":/icons/dashboard.svg"));
-        ui->viewToggleBtn->setToolTip("隐藏侧边栏");
+        ui->viewToggleBtn->setToolTip(QString::fromUtf8("\xe9\x9a\x90\xe8\x97\x8f\xe4\xbe\xa7\xe8\xbe\xb9\xe6\xa0\x8f"));
         animateSidebar(true);
-        ui->leftBtn1->show();
-        ui->leftBtn2->show();
-        ui->leftBtn3->show();
+        for (auto *btn : m_sidebarButtons) btn->show();
     }
     navigateTo(moduleName);
     updateSidebarSelection(moduleName);
 }
 
 void MainWindow::updateSidebarSelection(const QString &active) {
-    auto applyStyle = [](QPushButton *btn, bool selected) {
+    const auto &modules = ModuleRegistry::modules();
+    for (int i = 0; i < m_sidebarButtons.size() && i < modules.size(); ++i) {
+        bool selected = (modules[i].name == active);
         if (selected) {
-            btn->setStyleSheet(
+            m_sidebarButtons[i]->setStyleSheet(
                 "QPushButton { background-color: rgba(14, 165, 233, 0.15); border: none; border-radius: 6px; }"
-                "QPushButton:hover { background-color: rgba(14, 165, 233, 0.25); }"
-            );
+                "QPushButton:hover { background-color: rgba(14, 165, 233, 0.25); }");
         } else {
-            btn->setStyleSheet(
+            m_sidebarButtons[i]->setStyleSheet(
                 "QPushButton { background: transparent; border: none; border-radius: 6px; }"
-                "QPushButton:hover { background-color: #36383d; }"
-            );
+                "QPushButton:hover { background-color: #36383d; }");
         }
-    };
-    applyStyle(ui->leftBtn1, active == "websocket");
-    applyStyle(ui->leftBtn2, active == "translate");
-    applyStyle(ui->leftBtn3, active == "fileserver");
-}
-
-void MainWindow::setupLeftSidebarIcons() {
-    ui->leftBtn1->setIcon(QIcon(":/icons/websocket.svg"));
-    ui->leftBtn1->setIconSize(QSize(18, 18));
-    ui->leftBtn1->setToolTip("WebSocket");
-    ui->leftBtn1->setFixedSize(28, 28);
-
-    ui->leftBtn2->setIcon(QIcon(":/icons/translate.svg"));
-    ui->leftBtn2->setIconSize(QSize(18, 18));
-    ui->leftBtn2->setToolTip("翻译");
-    ui->leftBtn2->setFixedSize(28, 28);
-
-    ui->leftBtn3->setIcon(QIcon(":/icons/fileserver.svg"));
-    ui->leftBtn3->setIconSize(QSize(18, 18));
-    ui->leftBtn3->setToolTip("文件服务器");
-    ui->leftBtn3->setFixedSize(28, 28);
-
-    connect(ui->leftBtn1, &QPushButton::clicked, this, [this]() {
-        if (ui->leftBtn1->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
-            updateSidebarSelection("");
-            navigateBack();
-        } else {
-            navigateTo("websocket");
-            updateSidebarSelection("websocket");
-        }
-    });
-    connect(ui->leftBtn2, &QPushButton::clicked, this, [this]() {
-        if (ui->leftBtn2->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
-            updateSidebarSelection("");
-            navigateBack();
-        } else {
-            navigateTo("translate");
-            updateSidebarSelection("translate");
-        }
-    });
-    connect(ui->leftBtn3, &QPushButton::clicked, this, [this]() {
-        if (ui->leftBtn3->styleSheet().contains("rgba(14, 165, 233, 0.15)")) {
-            updateSidebarSelection("");
-            navigateBack();
-        } else {
-            navigateTo("fileserver");
-            updateSidebarSelection("fileserver");
-        }
-    });
+    }
 }
 
 int MainWindow::sidebarWidth() const {
@@ -446,83 +399,46 @@ void MainWindow::toggleSidebar() {
 
     if (m_sidebarVisible) {
         ui->viewToggleBtn->setIcon(QIcon(":/icons/dashboard.svg"));
-        ui->viewToggleBtn->setToolTip("隐藏侧边栏");
+        ui->viewToggleBtn->setToolTip(QString::fromUtf8("\xe9\x9a\x90\xe8\x97\x8f\xe4\xbe\xa7\xe8\xbe\xb9\xe6\xa0\x8f"));
         animateSidebar(true);
-        ui->leftBtn1->show();
-        ui->leftBtn2->show();
-        ui->leftBtn3->show();
+        for (auto *btn : m_sidebarButtons) btn->show();
         updateSidebarSelection("");
     } else {
         ui->viewToggleBtn->setIcon(QIcon(":/icons/sidebar.svg"));
-        ui->viewToggleBtn->setToolTip("显示侧边栏");
+        ui->viewToggleBtn->setToolTip(QString::fromUtf8("\xe6\x98\xbe\xe7\xa4\xba\xe4\xbe\xa7\xe8\xbe\xb9\xe6\xa0\x8f"));
         animateSidebar(false);
-        ui->leftBtn1->hide();
-        ui->leftBtn2->hide();
-        ui->leftBtn3->hide();
+        for (auto *btn : m_sidebarButtons) btn->hide();
         updateSidebarSelection("");
         navigateBack();
     }
 }
 
 void MainWindow::navigateTo(const QString &moduleName) {
-    if (moduleName == "websocket") {
-        ui->stackedWidget->setCurrentWidget(m_websocketPage);
-        updateBreadcrumb("仪表盘 › WebSocket");
-        ui->tabBarWidget->hide();
-    } else if (moduleName == "translate") {
-        ui->stackedWidget->setCurrentWidget(m_translationPage);
-        updateBreadcrumb("仪表盘 › 翻译");
-        ui->tabBarWidget->hide();
-    } else if (moduleName == "fileserver") {
-        ui->stackedWidget->setCurrentWidget(m_fileServerPage);
-        updateBreadcrumb("仪表盘 › 文件服务器");
-        ui->tabBarWidget->hide();
+    if (m_pages.contains(moduleName)) {
+        ui->stackedWidget->setCurrentWidget(m_pages[moduleName]);
+
+        const auto &modules = ModuleRegistry::modules();
+        for (const auto &mod : modules) {
+            if (mod.name == moduleName) {
+                updateBreadcrumb(mod.breadcrumb);
+                break;
+            }
+        }
     }
 }
 
 void MainWindow::navigateBack() {
     ui->stackedWidget->setCurrentWidget(m_dashboardPage);
-    updateBreadcrumb("仪表盘");
-
+    updateBreadcrumb(QString::fromUtf8("\xe4\xbb\xaa\xe8\xa1\xa8\xe7\x9b\x98"));
     ui->backBtn->hide();
     ui->homeBtn->hide();
     ui->breadcrumbSeparator1->hide();
-    ui->tabBarWidget->hide();
-
-    // Clear tab bar
-    auto *layout = qobject_cast<QBoxLayout *>(ui->tabBarWidget->layout());
-    if (layout) {
-        for (int i = layout->count() - 1; i >= 0; --i) {
-            auto *item = layout->itemAt(i);
-            if (!item || !item->widget()) continue;
-            if (item->widget()->objectName() == "tabWidget") {
-                auto *w = layout->takeAt(i)->widget();
-                w->deleteLater();
-            }
-        }
-    }
 }
 
 void MainWindow::updateBreadcrumb(const QString &path) {
     Q_UNUSED(path);
     ui->breadcrumbLabel->setText("");
     ui->breadcrumbLabel->setPixmap(QIcon(":/app_icon.jpg").pixmap(20, 20));
-}
-
-void MainWindow::showTabBar(bool show) {
-    ui->tabAdd->setVisible(show);
-}
-
-void MainWindow::onTabAddClicked() {
-}
-
-void MainWindow::onTabClicked(int index) {
-}
-
-void MainWindow::onTabCloseClicked(int index) {
-}
-
-void MainWindow::rebuildTabBar() {
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
@@ -549,11 +465,6 @@ void MainWindow::applyTitleBarStyle() {
         "#minimizeBtn:hover, #maximizeBtn:hover, #settingsBtn:hover { background-color: #36383d; }"
         "#closeBtn:hover { background-color: #dc2626; }"
 
-        "#leftBtn1, #leftBtn2, #leftBtn3 {"
-        "  background: transparent; border: none; border-radius: 4px;"
-        "}"
-        "#leftBtn1:hover, #leftBtn2:hover, #leftBtn3:hover { background-color: #36383d; }"
-
         "#backBtn, #homeBtn {"
         "  background: transparent; color: #94a3b8; border: none;"
         "  border-radius: 4px; padding: 3px 4px 5px 8px;"
@@ -576,8 +487,7 @@ void MainWindow::applyTitleBarStyle() {
         "QScrollBar:horizontal { background: transparent; height: 8px; margin: 0; }"
         "QScrollBar::handle:horizontal { background-color: #36383d; border-radius: 4px; min-width: 20px; }"
         "QScrollBar::handle:horizontal:hover { background-color: #475569; }"
-        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"
-    );
+        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }");
 }
 
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
@@ -597,37 +507,17 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
 
             const int borderSize = 6;
             if (cursor.y < borderSize) {
-                if (cursor.x < borderSize) {
-                    *result = HTTOPLEFT;
-                    return true;
-                }
-                if (cursor.x > winRect.right - borderSize) {
-                    *result = HTTOPRIGHT;
-                    return true;
-                }
-                *result = HTTOP;
-                return true;
+                if (cursor.x < borderSize) { *result = HTTOPLEFT; return true; }
+                if (cursor.x > winRect.right - borderSize) { *result = HTTOPRIGHT; return true; }
+                *result = HTTOP; return true;
             }
             if (cursor.y > winRect.bottom - borderSize) {
-                if (cursor.x < borderSize) {
-                    *result = HTBOTTOMLEFT;
-                    return true;
-                }
-                if (cursor.x > winRect.right - borderSize) {
-                    *result = HTBOTTOMRIGHT;
-                    return true;
-                }
-                *result = HTBOTTOM;
-                return true;
+                if (cursor.x < borderSize) { *result = HTBOTTOMLEFT; return true; }
+                if (cursor.x > winRect.right - borderSize) { *result = HTBOTTOMRIGHT; return true; }
+                *result = HTBOTTOM; return true;
             }
-            if (cursor.x < borderSize) {
-                *result = HTLEFT;
-                return true;
-            }
-            if (cursor.x > winRect.right - borderSize) {
-                *result = HTRIGHT;
-                return true;
-            }
+            if (cursor.x < borderSize) { *result = HTLEFT; return true; }
+            if (cursor.x > winRect.right - borderSize) { *result = HTRIGHT; return true; }
         }
     }
 #endif

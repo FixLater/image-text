@@ -2,25 +2,13 @@
 #define DASHBOARDPAGE_H
 
 #include <QWidget>
-#include <QGridLayout>
 #include <QPushButton>
 #include <QMap>
 #include <QLabel>
 #include <QTextBrowser>
-#include <QTextEdit>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
 #include <QPointer>
-#include <QTimer>
-
-struct ModuleCard {
-    QString name;
-    QString icon;
-    QString title;
-    QString description;
-};
 
 struct CardWidgets {
     QLabel *statusLabel = nullptr;
@@ -36,10 +24,13 @@ class DashboardPage : public QWidget {
 public:
     explicit DashboardPage(QWidget *parent = nullptr);
 
+    void loadCards();
+
+    void registerCardWidgets(const QString &name, const CardWidgets &w);
+    void registerFileServerCard(QLabel *status, QLabel *addr, QPushButton *toggle);
+
     void updateCardStatus(const QString &moduleName, bool connected, const QString &address = QString());
     void appendCardLog(const QString &moduleName, int tabIndex, const QString &html);
-    void updateCardTabInfo(const QString &moduleName, int current, int total);
-    void setCardLogFromTab(const QString &moduleName, const QString &html);
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
@@ -47,31 +38,16 @@ protected:
 
 signals:
     void moduleClicked(const QString &moduleName);
-    void cardPrevClicked(const QString &moduleName);
-    void cardNextClicked(const QString &moduleName);
-    void fileServerToggled(bool start);
 
 private:
     QWidget *m_cardArea;
-    QGridLayout *m_gridLayout;
     QMap<QString, CardWidgets> m_cardWidgets;
-    QMap<QString, int> m_cardTabIndices;
     QMap<QString, QWidget *> m_cardContainers;
     QStringList m_cardOrder;
-    QWidget *createCard(const ModuleCard &card);
-    QWidget *createTranslateCard();
-    QWidget *createFileServerCard();
 
-    QTextEdit *m_translateInput = nullptr;
-    QLabel *m_translateResult = nullptr;
-    QPushButton *m_translateBtn = nullptr;
-    QNetworkAccessManager *m_networkManager = nullptr;
-
-    QPushButton *m_serverToggleBtn = nullptr;
-    QLabel *m_serverStatusLabel = nullptr;
-    QLabel *m_serverAddressLabel = nullptr;
-
-    void doTranslate(const QString &text);
+    QLabel *m_fsStatusLabel = nullptr;
+    QLabel *m_fsAddressLabel = nullptr;
+    QPushButton *m_fsToggleBtn = nullptr;
 
     QString m_expandedCardName;
     bool m_isExpanded = false;
@@ -82,7 +58,6 @@ private:
 
     bool m_isAnimating = false;
     QPointer<QParallelAnimationGroup> m_animGroup;
-
 };
 
 #endif // DASHBOARDPAGE_H
